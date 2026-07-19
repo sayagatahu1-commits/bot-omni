@@ -13,7 +13,7 @@ CHAIN_ID = 12001
 # === RPC AUTO PICK ===
 RPC_LIST = [
     "https://rpc.teqoin.io/testnet",
-    "https://rpc.teqoin.io", 
+    "https://rpc.teqoin.io",
     "https://testnet.teqoin.io/rpc"
 ]
 
@@ -27,15 +27,13 @@ for rpc in RPC_LIST:
             RPC_URL = rpc
             print(f"Connected to {rpc}")
             break
-    except:
+    except Exception:
         continue
 
 if not web3:
     raise Exception("Semua RPC TeQoin mati bre")
 
 TOKEN_LIST = {
-...
-    
     "DAI": {
         "address": Web3.to_checksum_address("0xb96a869c74be2ed561d95a77408505371f287d16"),
         "decimals": 18
@@ -50,12 +48,15 @@ TOKEN_LIST = {
     }
 }
 
-ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
+ERC20_ABI = [
+    {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
+    {"constant": False, "inputs": [{"name": "_to", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
+]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         gas = web3.eth.gas_price / 10**18
-        msg = f"=== TeQoin Bot Testnet ===\nGas ETH: {gas:.10f}\n\n"
+        msg = f"=== TeQoin Bot Testnet ===\nRPC: {RPC_URL}\nGas ETH: {gas:.10f}\n\n"
         for token, data in TOKEN_LIST.items():
             contract = web3.eth.contract(address=data["address"], abi=ERC20_ABI)
             balance = contract.functions.balanceOf(WALLET_ADDRESS).call() / 10**data["decimals"]
@@ -70,7 +71,8 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
         addr_from_pk = web3.eth.account.from_key(PRIVATE_KEY).address
         eth_balance = web3.eth.get_balance(WALLET_ADDRESS) / 10**18
 
-        msg = f"WALLET_ADDRESS ENV: {WALLET_ADDRESS}\n"
+        msg = f"RPC: {RPC_URL}\n"
+        msg += f"WALLET_ADDRESS ENV: {WALLET_ADDRESS}\n"
         msg += f"Address dari PRIVATE_KEY: {addr_from_pk}\n"
         msg += f"Saldo ETH Gas: {eth_balance:.6f}\n"
 
@@ -163,7 +165,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("cek", cek)) # <-- DISINI POSISINYA
+    app.add_handler(CommandHandler("cek", cek))
     app.add_handler(CommandHandler("k", handle_k_command))
     app.run_polling()
 
