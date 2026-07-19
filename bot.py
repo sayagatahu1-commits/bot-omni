@@ -44,10 +44,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg += f'ETH: {eth_bal:.4f}\n'
 
         for symbol, data in TOKEN_LIST.items():
-            contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
-            bal = contract.functions.balanceOf(acct.address).call()
-            human_bal = bal / 10**data["decimals"]
-            msg += f'{symbol}: {human_bal:.4f}\n'
+            try:
+                contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
+                bal = contract.functions.balanceOf(acct.address).call()
+                human_bal = bal / 10**data["decimals"]
+                msg += f'{symbol}: {human_bal:.4f}\n'
+            except:
+                msg += f'{symbol}: Gagal load\n' # Kalo error, skip aja
 
         msg += f'\nSimple mode:\n/k 0xalamat → 0.01 USDT 1x\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
         await update.message.reply_text(msg, parse_mode='Markdown')
