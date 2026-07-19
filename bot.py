@@ -44,7 +44,6 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token = args[0].upper()
         to_addr = Web3.to_checksum_address(args[1])
         amount = float(args[2])
-
         nonce = w3.eth.get_transaction_count(acct.address)
 
         if token == "ETH":
@@ -57,16 +56,16 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': 4242424
             }
         elif token in TOKEN_LIST:
-    data = TOKEN_LIST[token] # <-- PAKE 4 SPASI ATAU 1 TAB
-    contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
-    amount_wei = int(amount * 10**data["decimals"])
-    tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
-        'from': acct.address,
-        'gas': 100000,
-        'gasPrice': w3.eth.gas_price,
-        'nonce': nonce,
-        'chainId': 4242424
-    })
+            data = TOKEN_LIST[token]
+            contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
+            amount_wei = int(amount * 10**data["decimals"])
+            tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
+                'from': acct.address,
+                'gas': 100000,
+                'gasPrice': w3.eth.gas_price,
+                'nonce': nonce,
+                'chainId': 4242424
+            })
         else:
             await update.message.reply_text('Token cuma: ETH, DAI, USDT, USDC')
             return
