@@ -50,7 +50,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 human_bal = bal / 10**data["decimals"]
                 msg += f'{symbol}: {human_bal:.4f}\n'
             except:
-                msg += f'{symbol}: Gagal load\n' # Kalo error, skip aja
+                msg += f'{symbol}: Gagal load\n'
 
         msg += f'\nSimple mode:\n/k 0xalamat → 0.01 USDT 1x\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
         await update.message.reply_text(msg, parse_mode='Markdown')
@@ -61,37 +61,42 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args
         token = "USDT"
-        amount = 0.01 # DEFAULT PALING MURAH
+        amount = 0.01
         repeat = 1
         to_addr = None
 
-        # /k 0xalamat → 0.01 USDT 1x
+        if len(args) == 0:
+            await update.message.reply_text('Pake: /k 0xalamat')
+            return
+
+        first_arg = args[0].upper()
+
         if len(args) == 1:
             to_addr = Web3.to_checksum_address(args[0])
 
-        # /k 0xalamat 5 → 0.01 USDT 5x
-        # /k 0xalamat 0.1 → 0.1 USDT 1x
         elif len(args) == 2:
-            to_addr = Web3.to_checksum_address(args[0])
-            if float(args[1]) >= 1 and float(args[1]).is_integer():
-                repeat = int(args[1])
+            if first_arg in TOKEN_LIST or first_arg == "ETH":
+                token = first_arg
+                to_addr = Web3.to_checksum_address(args[1])
+                if token == "ETH": amount = 0.0001
             else:
-                amount = float(args[1])
+                to_addr = Web3.to_checksum_address(args[0])
+                if float(args[1]) >= 1 and float(args[1]).is_integer():
+                    repeat = int(args[1])
+                else:
+                    amount = float(args[1])
 
-        # /k 0xalamat 0.1 5 → 0.1 USDT 5x
-        # /k ETH 0xalamat → 0.0001 ETH 1x
         elif len(args) == 3:
-            if args[0].upper() in TOKEN_LIST or args[0].upper() == "ETH":
-                token = args[0].upper()
+            if first_arg in TOKEN_LIST or first_arg == "ETH":
+                token = first_arg
                 to_addr = Web3.to_checksum_address(args[1])
                 amount = float(args[2])
-                if token == "ETH": amount = 0.0001
+                if token == "ETH" and amount == 0.01: amount = 0.0001
             else:
                 to_addr = Web3.to_checksum_address(args[0])
                 amount = float(args[1])
                 repeat = int(args[2])
 
-        # /k ETH 0xalamat 0.0001 10 → 0.0001 ETH 10x
         elif len(args) == 4:
             token = args[0].upper()
             to_addr = Web3.to_checksum_address(args[1])
@@ -102,17 +107,20 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'Simple mode:\n'
                 '/k 0xalamat → 0.01 USDT 1x\n'
                 '/k 0xalamat 5 → 0.01 USDT 5x\n'
-                '/k 0xalamat 0.1 10 → 0.1 USDT 10x\n'
-                '/k eth 0xalamat → 0.0001 ETH 1x'
+                '/k dai 0xalamat → 0.01 DAI 1x\n'
+                '/k eth 0xalamat 10 → 0.0001 ETH 10x'
             )
             return
 
-        if token == "ETH" and amount == 0.01: amount = 0.0001
         if repeat > 20:
             await update.message.reply_text('Maks 20x bre 😭')
             return
         if repeat < 1:
             await update.message.reply_text('Minimal 1x bre 😂')
+            return
+
+        if token!= "ETH" and token not in TOKEN_LIST:
+            await update.message.reply_text(f'Token {token} gak ada di list bre')
             return
 
         msg = await update.message.reply_text(f'Spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
