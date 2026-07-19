@@ -6,14 +6,36 @@ from web3 import Web3
 
 # === CONFIG RAILWAY ENV ===
 BOT_TOKEN = os.environ['BOT_TOKEN']
-RPC_URL = "https://testnet-rpc.teqoin.io"
 PRIVATE_KEY = os.environ['PRIVATE_KEY']
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
 CHAIN_ID = 12001
 
-web3 = Web3(Web3.HTTPProvider(RPC_URL))
+# === RPC AUTO PICK ===
+RPC_LIST = [
+    "https://rpc.teqoin.io/testnet",
+    "https://rpc.teqoin.io", 
+    "https://testnet.teqoin.io/rpc"
+]
+
+web3 = None
+RPC_URL = ""
+for rpc in RPC_LIST:
+    try:
+        temp_web3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={'timeout': 10}))
+        if temp_web3.is_connected():
+            web3 = temp_web3
+            RPC_URL = rpc
+            print(f"Connected to {rpc}")
+            break
+    except:
+        continue
+
+if not web3:
+    raise Exception("Semua RPC TeQoin mati bre")
 
 TOKEN_LIST = {
+...
+    
     "DAI": {
         "address": Web3.to_checksum_address("0xb96a869c74be2ed561d95a77408505371f287d16"),
         "decimals": 18
