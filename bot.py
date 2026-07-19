@@ -176,4 +176,3 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f'✅ Done {success}x! Total: {total:.4f} {token}')
     except Exception as e:
         await update.message.reply_text(f'Error: {e}')
-    main()
