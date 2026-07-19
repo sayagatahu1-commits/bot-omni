@@ -63,82 +63,67 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {e}")
 
 # ========== COMMAND /k ==========
-async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    args = context.args
-    if len(args) < 3:
-        await update.message.reply_text("Format: /k <eth/dai/usdt/usdc> <address> <jumlah>\nContoh: /k eth 0x123... 5")
-        return
-
-    token_type = args[0].lower()
-    to_address = args[1]
-
+def handle_k_command(update, context):
     try:
-        count = int(args[2])
-    except:
-        await update.message.reply_text("Jumlah harus angka")
-        return
+        args = context.args
+        if len(args)!= 3:
+            update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH\nContoh: /k usdt 0x123... 5")
+            return
 
-    if not web3.is_address(to_address):
-        await update.message.reply_text("Address ga valid")
-        return
+        token = args[0].upper()
+        to_address = Web3.to_checksum_address(args[1])
+        repeat = int(args[2])
 
-    to_address = web3.to_checksum_address(to_address)
+        if token not in TOKEN_LIST:
+            update.message.reply_text(f"Token {token} ga ada. Pilih: DAI, USDT, USDC")
+            return
+        
+        if repeat > 20:
+            update.message.reply_text("Max 20x sekali spam bre biar ga ngelag")
+            return
 
-    if token_type == "eth":
-        amount = 0.0001
-        success_count = 0
-        for i in range(count):
-            try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS)
-                tx = {
-                    'to': to_address,
-                    'value': web3.to_wei(amount, 'ether'),
-                    'gas': 21000,
-                    'gasPrice': web3.eth.gas_price,
-                    'nonce': nonce,
-                    'chainId': CHAIN_ID
-                }
-                signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                web3.eth.wait_for_transaction_receipt(tx_hash)
-                success_count += 1
-                await update.message.reply_text(f"TX ke-{i+1} sukses")
-            except Exception as e:
-                await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
-                break
-        await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} ETH")
-        return
-
-    if token_type.upper() in TOKEN_LIST:
-        token_data = TOKEN_LIST[token_type.upper()]
-        amount = 0.01
+        token_data = TOKEN_LIST[token]
+        contract = web3.eth.contract(address=token_data["address"], abi=ERC20_ABI)
         decimals = token_data["decimals"]
-        contract = web3.eth.contract(address=web3.to_checksum_address(token_data["address"]), abi=ERC20_ABI)
-        success_count = 0
+        
+        # KIRIM PALING KECIL = 1 unit terkecil
+        amount = 1 # 1 wei token = 0.000001 USDT/USDC atau 0.000000000000000001 DAI
+        
+        # Cek balance dulu
+        balance = contract.functions.balanceOf(WALLET_ADDRESS).call()
+        if balance < amount * repeat:
+            update.message.reply_text(f"Saldo {token} kurang. Butuh {amount * repeat / 10**decimals} {token}")
+            return
 
-        for i in range(count):
+        update.message.reply_text(f"Gas spam {repeat}x {token} ke {to_address[:10]}...")
+        
+        sukses = 0
+        for i in range(repeat):
             try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS)
-                tx = contract.functions.transfer(
-                    to_address,
-                    int(amount * 10**decimals)
-                ).build_transaction({
-                    'chainId': CHAIN_ID,
-                    'gas': 100000,
-                    'gasPrice': web3.eth.gas_price,
+                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
+                gas_price = int(web3.eth.gas_price * 1.3) # Naikin 30% biar tembus
+                
+                tx = contract.functions.transfer(to_address, amount).build_transaction({
+                    'from': WALLET_ADDRESS,
                     'nonce': nonce,
+                    'gas': 80000,
+                    'gasPrice': gas_price,
+                    'chainId': CHAIN_ID
                 })
-                signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                web3.eth.wait_for_transaction_receipt(tx_hash)
-                success_count += 1
-                await update.message.reply_text(f"TX ke-{i+1} sukses")
+
+                signed = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = web3.eth.send_raw_transaction(signed.rawTransaction)
+                sukses += 1
+                time.sleep(3) # Delay 3 detik biar nonce aman
+                
             except Exception as e:
-                await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
+                update.message.reply_text(f"Gagal ke-{i+1}: {str(e)[:50]}")
                 break
-        await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} {token_type.upper()}")
-    else:
-        await update.message.reply_text("Token ga dikenal. Pake: eth/dai/usdt/usdc")
+
+        update.message.reply_text(f"Done. Berhasil {sukses}/{repeat}x kirim {amount/10**decimals} {token}")
+
+    except Exception as e:
+        update.message.reply_text(f"Error: {str(e)}")
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
