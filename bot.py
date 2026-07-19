@@ -14,16 +14,17 @@ CHAIN_ID = 12001
 web3 = Web3(Web3.HTTPProvider(RPC_URL))
 
 TOKEN_LIST = {
+TOKEN_LIST = {
     "DAI": {
-        "address": Web3.to_checksum_address("0x3d01aE3e8b5c5fF26B0c4B9E9b3A0F1D4A8e2E7b"),
+        "address": Web3.to_checksum_address("0xb96a869c74be2ed561d95a77408505371f287d16"),
         "decimals": 18
     },
     "USDT": {
-        "address": Web3.to_checksum_address("0x4c21E5dB8b8d6B5e6C7F7a7F7a7F7a7F"),
+        "address": Web3.to_checksum_address("0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9"),
         "decimals": 6
     },
     "USDC": {
-        "address": Web3.to_checksum_address("0x6b17A7c5D8E5F6A9B8C7D6E5F4A3B2C1D0E9F8A7"),
+        "address": Web3.to_checksum_address("0xe819eb5be34b20f1fec012c0daf960397a0fb386"),
         "decimals": 6
     }
 }
