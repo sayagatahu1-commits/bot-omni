@@ -1,179 +1,153 @@
-import os
-import asyncio
+import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("RPC_URL")
+# ========== CONFIG ==========
+BOT_TOKEN = "ISI_TOKEN_BOT_LU_DISINI"
+PRIVATE_KEY = "ISI_PRIVATE_KEY_LU_DISINI"
+WALLET_ADDRESS = "0xE26175623a2A923F076c78da46f3C03ec89f802C"
 
-w3 = Web3(Web3.HTTPProvider(RPC_URL))
-acct = w3.eth.account.from_key(PRIVATE_KEY)
+RPC_URL = "https://rpc-testnet.teqoin.io"
+CHAIN_ID = 420377
+
+web3 = Web3(Web3.HTTPProvider(RPC_URL))
+
+# ========== ABI UNTUK BACA TOKEN ERC20 ==========
 ERC20_ABI = [
-    {
-        "constant": True,
-        "inputs": [{"name": "_owner", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"name": "balance", "type": "uint256"}],
-        "type": "function"
-    },
-    {
-        "constant": False,
-        "inputs": [
-            {"name": "_to", "type": "address"},
-            {"name": "_value", "type": "uint256"}
-        ],
-        "name": "transfer",
-        "outputs": [{"name": "", "type": "bool"}],
-        "type": "function"
-    },
-    {
-        "constant": True,
-        "inputs": [],
-        "name": "decimals",
-        "outputs": [{"name": "", "type": "uint8"}],
-        "type": "function"
-    }
+    {"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
+    {"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},
+    {"constant":True,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
 ]
 
+# ========== TEMPEL 3 CONTRACT ASLI DARI TEQOIN WALLET DI SINI ==========
 TOKEN_LIST = {
+    "DAI": {
+        "address": "0xGANTI_PAKE_CONTRACT_DAI_ASLI", # ← KLIK DAI DI WALLET → COPY CONTRACT
+        "decimals": 18
+    },
     "USDT": {
-        "address": "0x01a6810727db185bbf7f30ec158c3ac8b8112627", 
+        "address": "0xGANTI_PAKE_CONTRACT_USDT_ASLI", # ← KLIK USDT DI WALLET → COPY CONTRACT
         "decimals": 6
     },
     "USDC": {
-        "address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", 
-        "decimals": 6  
+        "address": "0xGANTI_PAKE_CONTRACT_USDC_ASLI", # ← KLIK USDC DI WALLET → COPY CONTRACT
+        "decimals": 6
     },
-    "DAI": {
-        "address": "0x3e622317f8C6194f429552ee04B7ecF67AA48A6e", 
-        "decimals": 18
-    }
 }
 
+# ========== COMMAND /start ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        eth_bal = w3.from_wei(w3.eth.get_balance(acct.address), 'ether')
-        msg = f'Bot TeQoin TESTNET Aktif!\nWallet: `{acct.address}`\n\n'
-        msg += f'ETH: {eth_bal:.4f}\n'
-        for symbol, data in TOKEN_LIST.items():
-            if data["address"] == "0x0000000000000000000000000000000000000000":
-                msg += f'{symbol}: 0.0000\n'  # USDC dummy
-                continue
+        msg = ""
+        # 1. CEK ETH
+        eth_balance = web3.eth.getBalance(WALLET_ADDRESS)
+        msg += f"ETH: {web3.fromWei(eth_balance, 'ether'):.8f}\n"
+
+        # 2. CEK SEMUA TOKEN DI TOKEN_LIST
+        for name, data in TOKEN_LIST.items():
             try:
-                contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
-                bal = contract.functions.balanceOf(acct.address).call()
-                human_bal = bal / 10**data["decimals"]
-                msg += f'{symbol}: {human_bal:.4f}\n'
-            except:
-                msg += f'{symbol}: 0.0000\n'
-        msg += f'\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
-        await update.message.reply_text(msg, parse_mode='Markdown')
-    except Exception as e:
-        await update.message.reply_text(f'Error: {e}')
-
-async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        args = context.args
-        token = "USDT"
-        amount = 0.01
-        repeat = 1
-
-        if len(args) == 0:
-            await update.message.reply_text('Pake: /k 0xalamat')
-            return
-
-        # Default
-        to_addr = Web3.to_checksum_address(args[0])
-
-        # /k 0xalamat 5
-        if len(args) == 2:
-            if args[0].upper() in TOKEN_LIST or args[0].upper() == "ETH":
-                token = args[0].upper()
-                to_addr = Web3.to_checksum_address(args[1])
-                if token == "ETH": amount = 0.0001
-            else:
-                to_addr = Web3.to_checksum_address(args[0])
-                x = args[1].lower().replace('x', '')
-                try:
-                    if '.' not in x: # angka bulat = repeat
-                        repeat = int(x)
-                    else: # ada koma = amount
-                        amount = float(x)
-                except:
-                    pass
-
-        # /k dai 0xalamat 5
-        elif len(args) == 3:
-            if args[0].upper() in TOKEN_LIST or args[0].upper() == "ETH":
-                token = args[0].upper()
-                to_addr = Web3.to_checksum_address(args[1])
-                x = args[2].lower().replace('x', '')
-                try:
-                    if '.' not in x:
-                        repeat = int(x)
-                        if token == "ETH": amount = 0.0001
-                    else:
-                        amount = float(x)
-                        if token == "ETH" and amount == 0.01: amount = 0.0001
-                except:
-                    pass
-            else:
-                to_addr = Web3.to_checksum_address(args[0])
-                amount = float(args[1])
-                repeat = int(args[2].lower().replace('x', ''))
-
-        # /k dai 0xalamat 0.1 5
-        elif len(args) == 4:
-            token = args[0].upper()
-            to_addr = Web3.to_checksum_address(args[1])
-            amount = float(args[2])
-            repeat = int(args[3].lower().replace('x', ''))
-
-        if repeat > 20:
-            await update.message.reply_text('Maks 20x bre')
-            return
-        if token!= "ETH" and token not in TOKEN_LIST:
-            await update.message.reply_text(f'Token {token} gak ada')
-            return
-
-        await update.message.reply_text(f'Spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
-
-        nonce = w3.eth.get_transaction_count(acct.address)
-        chain_id = w3.eth.chain_id
-        gas_price = w3.eth.gas_price
-        success = 0
-
-        for i in range(repeat):
-            try:
-                if token == "ETH":
-                    tx = {'to': to_addr,'value': w3.to_wei(amount, 'ether'),'gas': 21000,'gasPrice': gas_price,'nonce': nonce + i,'chainId': chain_id}
-                else:
-                    data = TOKEN_LIST[token]
-                    contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
-                    amount_wei = int(amount * 10**data["decimals"])
-                    tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({'gas': 100000,'gasPrice': gas_price,'nonce': nonce + i,'chainId': chain_id})
-
-                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                success += 1
-                await asyncio.sleep(0.3)
+                contract = web3.eth.contract(address=web3.toChecksumAddress(data["address"]), abi=ERC20_ABI)
+                balance = contract.functions.balanceOf(WALLET_ADDRESS).call()
+                decimals = data["decimals"]
+                formatted = balance / 10**decimals
+                msg += f"{name}: {formatted:.4f}\n"
             except Exception as e:
-                await update.message.reply_text(f'TX ke-{i+1} gagal: {str(e)[:60]}')
+                msg += f"{name}: Error - Contract salah\n"
+
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"Error: {e}")
+
+# ========== COMMAND /k ==========
+async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if len(args) < 3:
+        await update.message.reply_text("Format: /k <eth/dai/usdt/usdc> <address> <jumlah>\nContoh: /k eth 0x123... 5")
+        return
+
+    token_type = args[0].lower()
+    to_address = args[1]
+
+    try:
+        count = int(args[2])
+    except:
+        await update.message.reply_text("Jumlah harus angka")
+        return
+
+    if not web3.isAddress(to_address):
+        await update.message.reply_text("Address ga valid")
+        return
+
+    to_address = web3.toChecksumAddress(to_address)
+
+    # KIRIM ETH NATIVE
+    if token_type == "eth":
+        amount = 0.0001
+        success_count = 0
+        for i in range(count):
+            try:
+                nonce = web3.eth.getTransactionCount(WALLET_ADDRESS)
+                tx = {
+                    'to': to_address,
+                    'value': web3.toWei(amount, 'ether'),
+                    'gas': 21000,
+                    'gasPrice': web3.eth.gas_price,
+                    'nonce': nonce,
+                    'chainId': CHAIN_ID
+                }
+                signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+                web3.eth.waitForTransactionReceipt(tx_hash)
+                success_count += 1
+                await update.message.reply_text(f"TX ke-{i+1} sukses")
+            except Exception as e:
+                await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
                 break
 
-        total = amount * success
-        await update.message.reply_text(f'✅ Done {success}x! Total: {total:.4f} {token}')
-    except Exception as e:
-        await update.message.reply_text(f'Error: {e}')
+        await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} ETH")
+        return
 
+    # KIRIM TOKEN ERC20
+    if token_type.upper() in TOKEN_LIST:
+        token_data = TOKEN_LIST[token_type.upper()]
+        amount = 0.01
+        decimals = token_data["decimals"]
+        contract = web3.eth.contract(address=web3.toChecksumAddress(token_data["address"]), abi=ERC20_ABI)
+        success_count = 0
+
+        for i in range(count):
+            try:
+                nonce = web3.eth.getTransactionCount(WALLET_ADDRESS)
+                tx = contract.functions.transfer(
+                    to_address,
+                    int(amount * 10**decimals)
+                ).buildTransaction({
+                    'chainId': CHAIN_ID,
+                    'gas': 100000,
+                    'gasPrice': web3.eth.gas_price,
+                    'nonce': nonce,
+                })
+                signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+                web3.eth.waitForTransactionReceipt(tx_hash)
+                success_count += 1
+                await update.message.reply_text(f"TX ke-{i+1} sukses")
+            except Exception as e:
+                await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
+                break
+
+        await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} {token_type.upper()}")
+    else:
+        await update.message.reply_text("Token ga dikenal. Pake: eth/dai/usdt/usdc")
+
+# ========== RUN BOT ==========
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("k", k))
+    app.add_handler(CommandHandler("k", handle_k_command))
     print("Bot jalan...")
     app.run_polling()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
