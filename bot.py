@@ -3,7 +3,6 @@ from web3 import Web3
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Ambil env variable - anti typo
 PRIVATE_KEY = None
 BOT_TOKEN = None
 
@@ -13,42 +12,60 @@ for key, value in os.environ.items():
     if 'BOT_TOKEN' in key:
         BOT_TOKEN = value.strip()
 
-print(f"BOT_TOKEN: {BOT_TOKEN[:10]}...")
-print(f"PRIVATE_KEY: {PRIVATE_KEY[:10]}...")
+if not PRIVATE_KEY or not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN atau PRIVATE_KEY KOSONG!")
 
-if not PRIVATE_KEY:
-    raise ValueError("PRIVATE_KEY KOSONG!")
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN KOSONG!")
-
-RPC_URL = "https://testnet.omni.network"
-BRIDGE = Web3.to_checksum_address("0x2D6e44f44A83D5B99BC0745f10d1C4b8BFFF0e7d")
+# RPC ETHEREUM L1 - KARENA DEPOSIT DILAKUIN DI L1
+RPC_URL = "https://eth.llamarpc.com" # RPC L1 gratis
+L1_BRIDGE = Web3.to_checksum_address("0x919aa27d5278BC98bf40BA5A79be468B91f061dA")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 acct = w3.eth.account.from_key(PRIVATE_KEY)
 
-async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Bot Teqoin Bridge L1→L2 Aktif!\n\nPake: /deposit 0.01\n\n⚠️ Deposit butuh 15 menit & gas L1 $10-50')
+
+async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args:
-            await update.message.reply_text('Pake: /bridge 0.01')
+            await update.message.reply_text('Pake: /deposit 0.01\n\nMin 0.01 ETH')
             return
 
         amount = float(context.args[0])
+        if amount < 0.01:
+            await update.message.reply_text('Min deposit 0.01 ETH bro, gas L1 mahal')
+            return
+
+        balance = w3.eth.get_balance(acct.address)
+        if balance < w3.to_wei(amount + 0.01, 'ether'): # +0.01 buat gas
+            await update.message.reply_text(f'ETH L1 kurang bro. Balance: {w3.from_wei(balance, "ether"):.4f} ETH')
+            return
+
         tx = {
-            'to': BRIDGE,
+            'to': L1_BRIDGE,
             'value': w3.to_wei(amount, 'ether'),
             'gas': 100000,
-            'gasPrice': w3.to_wei('5', 'gwei'),
+            'gasPrice': w3.eth.gas_price, # pake gas price real-time L1
             'nonce': w3.eth.get_transaction_count(acct.address),
-            'chainId': 165,
+            'chainId': 1, # Ethereum Mainnet
         }
         signed = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        await update.message.reply_text(f'Bridge sent! TX: {tx_hash.hex()}')
+
+        await update.message.reply_text(
+            f'✅ Deposit dikirim ke L1!\n\n'
+            f'Amount: {amount} ETH\n'
+            f'TX: {tx_hash.hex()}\n'
+            f'Etherscan: https://etherscan.io/tx/{tx_hash.hex()}\n\n'
+            f'⏱️ Tunggu ~15 menit. ETH bakal muncul di TeQoin L2 otomatis.\n'
+            f'Cek di: https://explorer.teqoin.io'
+        )
     except Exception as e:
         await update.message.reply_text(f'Error: {e}')
 
 app = Application.builder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("bridge", bridge))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("deposit", deposit)) # ganti nama command
+app.add_handler(CommandHandler("bridge", deposit)) # alias biar gak bingung
 print("Bot jalan...")
 app.run_polling()
