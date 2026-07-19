@@ -67,14 +67,13 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if token == "ETH":
             tx = {
-                'from': acct.address, # INI WAJIB DITAMBAHIN
+                'from': acct.address,
                 'to': to_addr,
                 'value': w3.to_wei(amount, 'ether'),
                 'gas': 21000,
                 'gasPrice': w3.eth.gas_price,
                 'nonce': nonce,
-                'chainId': 4242424,
-                'type': 0 # PAKE LEGACY TX BIAR AMAN
+                'chainId': 4242424
             }
         elif token in TOKEN_LIST:
             data = TOKEN_LIST[token]
@@ -85,15 +84,13 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gas': 100000,
                 'gasPrice': w3.eth.gas_price,
                 'nonce': nonce,
-                'chainId': 4242424,
-                'type': 0 # PAKE LEGACY TX JUGA
+                'chainId': 4242424
             })
         else:
             await update.message.reply_text('Token cuma: ETH, DAI, USDT, USDC')
             return
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        # FIX BUAT web3.py v6: raw_transaction
         tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         await update.message.reply_text(
