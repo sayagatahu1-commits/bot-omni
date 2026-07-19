@@ -58,14 +58,16 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': 4242424
             }
         elif token in TOKEN_LIST:
-            contract = w3.eth.contract(address=Web3.to_checksum_address(TOKEN_LIST[token]), abi=ERC20_ABI)
-            tx = contract.functions.transfer(to_addr, int(amount * 10**18)).build_transaction({
-                'from': acct.address,
-                'gas': 100000,
-                'gasPrice': w3.eth.gas_price,
-                'nonce': nonce,
-                'chainId': 4242424
-            })
+    data = TOKEN_LIST[token]
+    contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
+    amount_wei = int(amount * 10**data["decimals"]) # INI JUGA
+    tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
+        'from': acct.address,
+        'gas': 100000,
+        'gasPrice': w3.eth.gas_price,
+        'nonce': nonce,
+        'chainId': 4242424
+    })
         else:
             await update.message.reply_text('Token cuma: ETH, DAI, USDT, USDC')
             return
