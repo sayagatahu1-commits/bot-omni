@@ -81,34 +81,45 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if token == "ETH": amount = 0.0001
             else:
                 to_addr = Web3.to_checksum_address(args[0])
-                if float(args[1]) >= 1 and float(args[1]).is_integer():
-                    repeat = int(args[1])
+                val = args[1].lower().replace('x', '')
+                # Kalo bulat & >= 1 = repeat, kalo desimal = amount
+                if '.' not in val and float(val) >= 1:
+                    repeat = int(val)
                 else:
-                    amount = float(args[1])
+                    amount = float(val)
 
         elif len(args) == 3:
             if first_arg in TOKEN_LIST or first_arg == "ETH":
                 token = first_arg
                 to_addr = Web3.to_checksum_address(args[1])
-                amount = float(args[2])
-                if token == "ETH" and amount == 0.01: amount = 0.0001
+                val = args[2].lower().replace('x', '')
+                # Kalo bulat & >= 1 = repeat, kalo desimal = amount
+                if '.' not in val and float(val) >= 1:
+                    repeat = int(val)
+                    if token == "ETH": amount = 0.0001
+                else:
+                    amount = float(val)
+                    if token == "ETH" and amount == 0.01: amount = 0.0001
             else:
                 to_addr = Web3.to_checksum_address(args[0])
                 amount = float(args[1])
-                repeat = int(args[2])
+                repeat_str = args[2].lower().replace('x', '')
+                repeat = int(repeat_str)
 
         elif len(args) == 4:
             token = args[0].upper()
             to_addr = Web3.to_checksum_address(args[1])
             amount = float(args[2])
-            repeat = int(args[3])
+            repeat_str = args[3].lower().replace('x', '')
+            repeat = int(repeat_str)
         else:
             await update.message.reply_text(
                 'Simple mode:\n'
                 '/k 0xalamat → 0.01 USDT 1x\n'
                 '/k 0xalamat 5 → 0.01 USDT 5x\n'
-                '/k dai 0xalamat → 0.01 DAI 1x\n'
-                '/k eth 0xalamat 10 → 0.0001 ETH 10x'
+                '/k dai 0xalamat 5 → 0.01 DAI 5x\n'
+                '/k dai 0xalamat 0.1 → 0.1 DAI 1x\n'
+                '/k dai 0xalamat 0.1 5 → 0.1 DAI 5x'
             )
             return
 
@@ -165,12 +176,4 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f'✅ Done {success}x! Total: {total:.4f} {token}')
     except Exception as e:
         await update.message.reply_text(f'Error: {e}')
-
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("k", k))
-    app.run_polling()
-
-if __name__ == '__main__':
     main()
