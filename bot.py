@@ -72,8 +72,8 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'value': w3.to_wei(amount, 'ether'),
                 'gas': 21000,
                 'gasPrice': w3.eth.gas_price,
-                'nonce': nonce,
-                'chainId': 4242424
+                'nonce': nonce
+                # HAPUS chainId
             }
         elif token in TOKEN_LIST:
             data = TOKEN_LIST[token]
@@ -83,15 +83,15 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'from': acct.address,
                 'gas': 100000,
                 'gasPrice': w3.eth.gas_price,
-                'nonce': nonce,
-                'chainId': 4242424
+                'nonce': nonce
+                # HAPUS chainId
             })
         else:
             await update.message.reply_text('Token cuma: ETH, DAI, USDT, USDC')
             return
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction) # INI YANG BENER BUAT V5
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
         await update.message.reply_text(
             f'✅ Dikirim {amount} {token} ke {to_addr}\n'
