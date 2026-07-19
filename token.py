@@ -1,9 +1,8 @@
 from web3 import Web3
 
 # GANTI INI PAKE RPC + WALLET LU
-RPC_URL = "https://testnet-rpc.teqoin.io"  # RPC TeQoin lu
-WALLET = "0xe2619b6a0f2a84c6e4c9c3d8f5e1a2b3c4d5e6f7"  # Ganti address wallet lu
-
+RPC_URL = "https://testnet-rpc.teqoin.io"  # Pastiin RPC TeQoin lu bener
+WALLET = "0xE26175623a2A923F076c78da46f3C03ec89f802C"  # Ganti address wallet lu yg ada USDT/USDC/DAI
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 
 # Cari semua token yg pernah masuk wallet
