@@ -6,7 +6,7 @@ from web3 import Web3
 
 # === CONFIG RAILWAY ENV ===
 BOT_TOKEN = os.environ['BOT_TOKEN']
-RPC_URL = "https://rpc.teqoin.io"
+RPC_URL = "https://rpc.teqoin.io/testnet"
 PRIVATE_KEY = os.environ['PRIVATE_KEY']
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
 CHAIN_ID = 12001
