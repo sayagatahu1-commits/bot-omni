@@ -9,7 +9,7 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 PRIVATE_KEY = os.environ.get("PRIVATE_KEY") 
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ.get("WALLET_ADDRESS"))
 # RPC_URL = "https://rpc.teqoin.io/testnet" # YANG AMPAS
-RPC_URL = "https://testnet-rpc.teqoin.io" # COBA INI
+RPC_URL = "https://rpc.teqoin.io" # COBA INI
 CHAIN_ID = 420377
 
 # ========== CONTRACT TEQOIN TESTNET ASLI ==========
