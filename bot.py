@@ -6,7 +6,7 @@ from web3 import Web3
 
 # === CONFIG RAILWAY ENV ===
 BOT_TOKEN = os.environ['BOT_TOKEN']
-RPC_URL = "https://rpc.teqoin.io/testnet"
+RPC_URL = "https://testnet-rpc.teqoin.io"
 PRIVATE_KEY = os.environ['PRIVATE_KEY']
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
 CHAIN_ID = 12001
@@ -27,27 +27,9 @@ TOKEN_LIST = {
         "decimals": 6
     }
 }
-ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
-async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        addr_from_pk = web3.eth.account.from_key(PRIVATE_KEY).address
-        eth_balance = web3.eth.get_balance(WALLET_ADDRESS) / 10**18
-        
-        msg = f"WALLET_ADDRESS ENV: {WALLET_ADDRESS}\n"
-        msg += f"Address dari PRIVATE_KEY: {addr_from_pk}\n"
-        msg += f"Saldo ETH Gas: {eth_balance:.6f}\n"
-        
-        if WALLET_ADDRESS.lower() == addr_from_pk.lower():
-            msg += "✅ Private Key COCOK"
-        else:
-            msg += "❌ Private Key BEDA SAMA ADDRESS"
-            
-        await update.message.reply_text(msg)
-    except Exception as e:
-        await update.message.reply_text(f"Error: {str(e)}")
 
-# di main():
-app.add_handler(CommandHandler("cek", cek))
+ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         gas = web3.eth.gas_price / 10**18
@@ -60,6 +42,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(msg)
     except Exception as e:
         await update.message.reply_text(f"Error /start: {str(e)}")
+
+async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        addr_from_pk = web3.eth.account.from_key(PRIVATE_KEY).address
+        eth_balance = web3.eth.get_balance(WALLET_ADDRESS) / 10**18
+
+        msg = f"WALLET_ADDRESS ENV: {WALLET_ADDRESS}\n"
+        msg += f"Address dari PRIVATE_KEY: {addr_from_pk}\n"
+        msg += f"Saldo ETH Gas: {eth_balance:.6f}\n"
+
+        if WALLET_ADDRESS.lower() == addr_from_pk.lower():
+            msg += "✅ Private Key COCOK"
+        else:
+            msg += "❌ Private Key BEDA SAMA ADDRESS"
+
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"Error: {str(e)}")
 
 async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -85,9 +85,9 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         decimals = token_data["decimals"]
 
         if token == "DAI":
-            amount = 10**13 # 0.01 DAI
+            amount = 10**13
         elif token in ["USDT", "USDC"]:
-            amount = 10000 # 0.01 USDT/USDC
+            amount = 10000
         else:
             amount = 1
 
@@ -141,6 +141,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("cek", cek)) # <-- DISINI POSISINYA
     app.add_handler(CommandHandler("k", handle_k_command))
     app.run_polling()
 
