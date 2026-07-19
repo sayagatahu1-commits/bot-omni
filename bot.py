@@ -12,23 +12,23 @@ acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 # Contract token TeQoin Testnet
 TOKEN_LIST = {
-    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
-    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
-    "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16"
+TOKEN_LIST = {
+    "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
+    "USDC": {"address": "0xe819eb5be34b20f1fec012c0daf960397a0fb386", "decimals": 6},
+    "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18}
 }
-ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         eth_bal = w3.from_wei(w3.eth.get_balance(acct.address), 'ether')
-
         msg = f'Bot TeQoin TESTNET Aktif!\n\nWallet: `{acct.address}`\n\n'
         msg += f'ETH: {eth_bal:.4f}\n'
 
-        for symbol, addr in TOKEN_LIST.items():
-            contract = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=ERC20_ABI)
+        for symbol, data in TOKEN_LIST.items():
+            contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
             bal = contract.functions.balanceOf(acct.address).call()
-            msg += f'{symbol}: {bal / 10**18:.4f}\n'
+            human_bal = bal / 10**data["decimals"] # INI KUNCINYA
+            msg += f'{symbol}: {human_bal:.4f}\n'
 
         msg += '\nPake: /send ETH 0xalamat 0.01\nPake: /send DAI 0xalamat 25'
         await update.message.reply_text(msg)
