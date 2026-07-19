@@ -5,14 +5,13 @@ from web3 import Web3
 import asyncio
 
 BOT_TOKEN = os.environ['BOT_TOKEN']
-PRIVATE_KEY = os.environ['PRIVATE_KEY']
+PRIVATE_KEY = os.environ['PRIVATE_KEY'].strip() #.strip() biar ga ada spasi
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
 RPC_URL = os.environ.get('RPC_URL', 'https://rpc.teqoin.io/testnet')
 
 web3 = Web3(Web3.HTTPProvider(RPC_URL))
 CHAIN_ID = 22888
 
-# ALAMAT TOKEN TEQOIN TESTNET LU - UDAH GW MASUKIN
 CONTRACTS = {
     'usdt': Web3.to_checksum_address('0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9'),
     'usdc': Web3.to_checksum_address('0xe819eb5be34b20f1fec012c0daf960397a0fb386'),
@@ -40,8 +39,9 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         pk_addr = web3.eth.account.from_key(PRIVATE_KEY).address
         eth = web3.from_wei(web3.eth.get_balance(WALLET_ADDRESS), 'ether')
+        gp = web3.from_wei(web3.eth.gas_price, 'gwei')
         status = "✅ Private Key COCOK" if pk_addr.lower() == WALLET_ADDRESS.lower() else "❌ Private Key BEDA"
-        msg = f"RPC: {RPC_URL}\nWALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
+        msg = f"RPC: {RPC_URL}\nChainID: {CHAIN_ID}\nGasPrice: {gp:.2f} gwei\nWALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
         await update.message.reply_text(msg)
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
@@ -70,21 +70,24 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i in range(jumlah):
             try:
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'latest')
-                gas_price = web3.eth.gas_price # ga pake * 1.5 biar murah
+
+                # FIX UTAMA: SET GAS MURAH MANUAL 1 GWEI
+                gas_price = web3.to_wei('1', 'gwei') # 1 gwei doang
 
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
-                    'gas': 65000, # turunin dari 100000 biar ga boros
+                    'gas': 50000, # Turunin lagi ke 50k
                     'gasPrice': gas_price,
-                    'chainId': CHAIN_ID
+                    'chainId': CHAIN_ID,
+                    'value': 0
                 })
 
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
                 web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
                 sukses += 1
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
 
             except Exception as e:
                 await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)}")
