@@ -23,8 +23,17 @@ w3 = Web3(Web3.HTTPProvider(RPC_URL))
 acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Bot Teqoin Bridge L1→L2 Aktif!\n\nPake: /deposit 0.01\n\n⚠️ Deposit butuh 15 menit & gas L1 $10-50')
-
+    try:
+        eth_balance = w3.from_wei(w3.eth.get_balance(acct.address), 'ether')
+        await update.message.reply_text(
+            f'Bot Teqoin Bridge L1→L2 Aktif!\n\n'
+            f'Wallet: `{acct.address}`\n'
+            f'Balance L1: {eth_balance:.4f} ETH\n\n'
+            f'Pake: /deposit 0.01\n'
+            f'⚠️ Deposit butuh 15 menit & gas L1 $10-50'
+        )
+    except Exception as e:
+        await update.message.reply_text(f'RPC Error: {e}\n\nCek API Key Alchemy')
 async def deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args:
