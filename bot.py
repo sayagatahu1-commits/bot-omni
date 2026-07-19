@@ -5,11 +5,11 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
 
 # ========== CONFIG ==========
-BOT_TOKEN = os.getenv("BOT_TOKEN") # SET DI RAILWAY VARIABLES
-PRIVATE_KEY = os.getenv("PRIVATE_KEY") # SET DI RAILWAY VARIABLES
-WALLET_ADDRESS = os.getenv("WALLET_ADDRESS") # SET DI RAILWAY VARIABLES
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+WALLET_ADDRESS = os.getenv("WALLET_ADDRESS")
 
-RPC_URL = "https://rpc-testnet.teqoin.io"
+RPC_URL = "https://rpc.teqoin.io/testnet" # ← INI YG BENER
 CHAIN_ID = 420377
 
 web3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -24,15 +24,15 @@ ERC20_ABI = [
 # ========== TEMPEL 3 CONTRACT ASLI DARI TEQOIN WALLET DI SINI ==========
 TOKEN_LIST = {
     "DAI": {
-        "address": "0xGANTI_PAKE_CONTRACT_DAI_ASLI",
+        "address": "0xGANTI_PAKE_CONTRACT_DAI_ASLI", # Klik DAI di wallet → Copy Contract
         "decimals": 18
     },
     "USDT": {
-        "address": "0xGANTI_PAKE_CONTRACT_USDT_ASLI",
+        "address": "0xGANTI_PAKE_CONTRACT_USDT_ASLI", # Klik USDT di wallet → Copy Contract
         "decimals": 6
     },
     "USDC": {
-        "address": "0xGANTI_PAKE_CONTRACT_USDC_ASLI",
+        "address": "0xGANTI_PAKE_CONTRACT_USDC_ASLI", # Klik USDC di wallet → Copy Contract
         "decimals": 6
     },
 }
@@ -40,12 +40,14 @@ TOKEN_LIST = {
 # ========== COMMAND /start ==========
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        if not web3.is_connected():
+            await update.message.reply_text("RPC mati bre. Coba lagi ntar.")
+            return
+
         msg = ""
-        # 1. CEK ETH - FIX: get_balance bukan getBalance
         eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
         msg += f"ETH: {web3.from_wei(eth_balance, 'ether'):.8f}\n"
 
-        # 2. CEK SEMUA TOKEN DI TOKEN_LIST
         for name, data in TOKEN_LIST.items():
             try:
                 contract = web3.eth.contract(address=web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
@@ -82,7 +84,6 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     to_address = web3.to_checksum_address(to_address)
 
-    # KIRIM ETH NATIVE
     if token_type == "eth":
         amount = 0.0001
         success_count = 0
@@ -91,25 +92,23 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS)
                 tx = {
                     'to': to_address,
-                    'value': web3.to_wei(amount, 'ether'), # FIX: to_wei bukan toWei
+                    'value': web3.to_wei(amount, 'ether'),
                     'gas': 21000,
                     'gasPrice': web3.eth.gas_price,
                     'nonce': nonce,
                     'chainId': CHAIN_ID
                 }
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction) # FIX: send_raw_transaction
-                web3.eth.wait_for_transaction_receipt(tx_hash) # FIX: wait_for_transaction_receipt
+                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                web3.eth.wait_for_transaction_receipt(tx_hash)
                 success_count += 1
                 await update.message.reply_text(f"TX ke-{i+1} sukses")
             except Exception as e:
                 await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
                 break
-
         await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} ETH")
         return
 
-    # KIRIM TOKEN ERC20
     if token_type.upper() in TOKEN_LIST:
         token_data = TOKEN_LIST[token_type.upper()]
         amount = 0.01
@@ -119,11 +118,11 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         for i in range(count):
             try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS) # FIX: get_transaction_count
+                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS)
                 tx = contract.functions.transfer(
                     to_address,
                     int(amount * 10**decimals)
-                ).build_transaction({ # FIX: build_transaction bukan buildTransaction
+                ).build_transaction({
                     'chainId': CHAIN_ID,
                     'gas': 100000,
                     'gasPrice': web3.eth.gas_price,
@@ -137,12 +136,10 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 await update.message.reply_text(f"TX ke-{i+1} gagal: {e}")
                 break
-
         await update.message.reply_text(f"✅ Done {success_count}x! Total: {success_count*amount} {token_type.upper()}")
     else:
         await update.message.reply_text("Token ga dikenal. Pake: eth/dai/usdt/usdc")
 
-# ========== RUN BOT ==========
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
