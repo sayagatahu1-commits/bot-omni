@@ -8,7 +8,7 @@ PRIVKEY = "0x4cb91ae51c9f26e961ce3f7d0410a3091a3b2c6c16e1e067b234bf47dd93be42"
 RPC_URL = "https://testnet.omni.network"
 BRIDGE = Web3.to_checksum_address("0x2D6e44F44A83D5B998C0745f10d1C4b8BffF0e7d")
 
-w3 = Web3(Web3.HTTPProvider(RPC))
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
 acct = w3.eth.account.from_key(PRIVKEY)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
