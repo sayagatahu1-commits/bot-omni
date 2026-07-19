@@ -12,7 +12,6 @@ acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 # Contract token TeQoin Testnet
 TOKEN_LIST = {
-TOKEN_LIST = {
     "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
     "USDC": {"address": "0xe819eb5be34b20f1fec012c0daf960397a0fb386", "decimals": 6},
     "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18}
