@@ -76,10 +76,13 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token_data = TOKEN_LIST[token]
         contract = web3.eth.contract(address=token_data["address"], abi=ERC20_ABI)
         decimals = token_data["decimals"]
+
         if token == "DAI":
     amount = 10**13  # 0.01 DAI
 elif token in ["USDT", "USDC"]:
     amount = 10000   # 0.01 USDT/USDC
+else:
+    amount = 1       # fallback
 
         balance = contract.functions.balanceOf(WALLET_ADDRESS).call()
         if balance < amount * repeat:
