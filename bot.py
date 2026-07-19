@@ -13,15 +13,15 @@ acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 TOKEN_LIST = {
     "USDT": {
-        "address": "0xdc025a3e7d0f82debe25df7cecf8cb0be6e9", 
+        "address": "0x01a6810727db185bbf7f30ec158c3ac8b8112627", 
         "decimals": 6
     },
     "USDC": {
-        "address": "0xbc6ad496524e0a4260eb571c936576a4f537d67b", 
+        "address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", 
         "decimals": 6  
     },
     "DAI": {
-        "address": "0xb96a869c74be2ed561d95a7740850537f287d16", 
+        "address": "0x3e622317f8C6194f429552ee04B7ecF67AA48A6e", 
         "decimals": 18
     }
 }
