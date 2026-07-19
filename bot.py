@@ -28,7 +28,26 @@ TOKEN_LIST = {
     }
 }
 ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
+async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        addr_from_pk = web3.eth.account.from_key(PRIVATE_KEY).address
+        eth_balance = web3.eth.get_balance(WALLET_ADDRESS) / 10**18
+        
+        msg = f"WALLET_ADDRESS ENV: {WALLET_ADDRESS}\n"
+        msg += f"Address dari PRIVATE_KEY: {addr_from_pk}\n"
+        msg += f"Saldo ETH Gas: {eth_balance:.6f}\n"
+        
+        if WALLET_ADDRESS.lower() == addr_from_pk.lower():
+            msg += "✅ Private Key COCOK"
+        else:
+            msg += "❌ Private Key BEDA SAMA ADDRESS"
+            
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"Error: {str(e)}")
 
+# di main():
+app.add_handler(CommandHandler("cek", cek))
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         gas = web3.eth.gas_price / 10**18
