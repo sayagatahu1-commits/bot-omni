@@ -16,7 +16,7 @@ if not PRIVATE_KEY or not BOT_TOKEN:
     raise ValueError("BOT_TOKEN atau PRIVATE_KEY KOSONG!")
 
 # RPC ETHEREUM L1 - KARENA DEPOSIT DILAKUIN DI L1
-RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/xxx"  # BENER
+RPC_URL = "https://eth-mainnet.g.alchemy.com/v2/7EAMKBlBmPENaZeJ4uuRt"  # BENER
 L1_BRIDGE = Web3.to_checksum_address("0x919aa27d5278BC98bf40BA5A79be468B91f061dA")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
