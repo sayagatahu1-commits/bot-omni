@@ -21,7 +21,7 @@ if not PRIVATE_KEY:
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN KOSONG!")
 
-RPC_URL = "https://omni-testnet.blastapi.io/1b3c4d2e-5f6a-7b8c-9d0e-1f2a3b4c5d6e"
+RPC_URL = "https://testnet.rpc.omni.network"
 BRIDGE = Web3.to_checksum_address("0x2D6e44f44A83D5B99BC0745f10d1C4b8BFFF0e7d")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
