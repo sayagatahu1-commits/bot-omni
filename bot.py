@@ -12,9 +12,18 @@ w3 = Web3(Web3.HTTPProvider(RPC_URL))
 acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 TOKEN_LIST = {
-    "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
-    "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18},
-    "USDC": {"address": "0x0000000000000000", "decimals": 6}  # Dummy biar muncul
+    "USDT": {
+        "address": "0xdc025a3e7d0f82debe25df7cecf8cb0be6e9", 
+        "decimals": 6
+    },
+    "USDC": {
+        "address": "0xbc6ad496524e0a4260eb571c936576a4f537d67b", 
+        "decimals": 6  
+    },
+    "DAI": {
+        "address": "0xb96a869c74be2ed561d95a7740850537f287d16", 
+        "decimals": 18
+    }
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
