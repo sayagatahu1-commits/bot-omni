@@ -93,36 +93,39 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Mulai spam {repeat}x {amount/10**decimals} {token} ke {to_address[:10]}...")
         
         sukses = 0
-        for i in range(repeat):
-            try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
-                gas_price = int(web3.eth.gas_price * 1.3)
+for i in range(repeat):
+    try:
+        nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
+        gas_price = int(web3.eth.gas_price * 1.5) # naikin 50% biar cepet
 
-                tx = contract.functions.transfer(to_address, amount).build_transaction({
-                    'from': WALLET_ADDRESS,
-                    'nonce': nonce,
-                    'gas': 80000,
-                    'gasPrice': gas_price,
-                    'chainId': CHAIN_ID
-                })
+        tx = contract.functions.transfer(to_address, amount).build_transaction({
+            'from': WALLET_ADDRESS,
+            'nonce': nonce,
+            'gas': 100000, # naikin gas limit dikit
+            'gasPrice': gas_price,
+            'chainId': CHAIN_ID
+        })
 
-                signed = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed.rawTransaction)
+        signed = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = web3.eth.send_raw_transaction(signed.rawTransaction)
+        
+        await update.message.reply_text(f"[{i+1}/{repeat}] Broadcast: {tx_hash.hex()}")
+        
+        try:
+            receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=180) # 3 menit
+            if receipt.status == 1:
+                sukses += 1
+                await update.message.reply_text(f"[{i+1}/{repeat}] ✅ CONFIRMED Block {receipt.blockNumber}")
+            else:
+                await update.message.reply_text(f"[{i+1}/{repeat}] ❌ FAILED: TX Reverted")
+        except Exception as e:
+            await update.message.reply_text(f"[{i+1}/{repeat}] ⚠️ TIMEOUT: {type(e).__name__}")
                 
-                await update.message.reply_text(f"[{i+1}/{repeat}] Broadcast: {tx_hash.hex()}")
-                receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-                
-                if receipt.status == 1:
-                    sukses += 1
-                    await update.message.reply_text(f"[{i+1}/{repeat}] ✅ SUKSES CONFIRMED")
-                else:
-                    await update.message.reply_text(f"[{i+1}/{repeat}] ❌ FAILED DI CHAIN")
-                
-                await asyncio.sleep(3)
+        await asyncio.sleep(5)
 
-            except Exception as e:
-                await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:80]}")
-                break
+    except Exception as e:
+        await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:100]}")
+        break
 
         await update.message.reply_text(f"SELESAI. Berhasil {sukses}/{repeat}x kirim {token}")
 
