@@ -4,37 +4,21 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
 
-RPC_URL = "https://rpc.teqoin.io"
-PRIVATE_KEY = os.getenv('PRIVATE_KEY')
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+RPC_URL = os.getenv("RPC_URL")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 TOKEN_LIST = {
     "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
-    "USDC": {"address": "0x8e19eb5be34b20f1fec012c0daf960397af0fb36", "decimals": 6},
     "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18}
 }
 
 ERC20_ABI = [
-    {
-        "constant": True,
-        "inputs": [{"name": "_owner", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"name": "balance", "type": "uint256"}],
-        "type": "function"
-    },
-    {
-        "constant": False,
-        "inputs": [
-            {"name": "_to", "type": "address"},
-            {"name": "_value", "type": "uint256"}
-        ],
-        "name": "transfer",
-        "outputs": [{"name": "", "type": "bool"}],
-        "type": "function"
-    }
+    {"constant": True,"inputs": [{"name": "_owner","type": "address"}],"name": "balanceOf","outputs": [{"name": "balance","type": "uint256"}],"type": "function"},
+    {"constant": False,"inputs": [{"name": "_to","type": "address"},{"name": "_value","type": "uint256"}],"name": "transfer","outputs": [{"name": "","type": "bool"}],"type": "function"}
 ]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -49,13 +33,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 bal = contract.functions.balanceOf(acct.address).call()
                 human_bal = bal / 10**data["decimals"]
                 msg += f'{symbol}: {human_bal:.4f}\n'
-            except:
+            except Exception as e:
                 msg += f'{symbol}: Gagal load\n'
 
         msg += f'\nSimple mode:\n/k 0xalamat → 0.01 USDT 1x\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
         await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f'Error: {e}')
+        await update.message.reply_text(f'Error /start: {e}')
 
 async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -83,7 +67,6 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 to_addr = Web3.to_checksum_address(args[0])
                 val = args[1].lower().replace('x', '')
                 try:
-                    # Kalo bulat = repeat, kalo desimal = amount
                     if val.isdigit() and int(val) >= 1:
                         repeat = int(val)
                     else:
@@ -118,14 +101,7 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount = float(args[2])
             repeat = int(args[3].lower().replace('x', ''))
         else:
-            await update.message.reply_text(
-                'Format:\n'
-                '/k 0xalamat → 0.01 USDT 1x\n'
-                '/k 0xalamat 5 → 0.01 USDT 5x\n'
-                '/k dai 0xalamat 5 → 0.01 DAI 5x\n'
-                '/k dai 0xalamat 0.1 → 0.1 DAI 1x\n'
-                '/k dai 0xalamat 0.1 5 → 0.1 DAI 5x'
-            )
+            await update.message.reply_text('Format salah bre')
             return
 
         if repeat > 20:
@@ -181,3 +157,13 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f'Error fatal: {e}')
+
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("k", k))
+    print("Bot jalan bre...")
+    app.run_polling()
+
+if __name__ == '__main__':
+    main()
