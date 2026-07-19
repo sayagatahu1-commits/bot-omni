@@ -58,7 +58,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args
         if len(args)!= 3:
-            await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH\nContoh: /k usdt 0x738239279bd0739c5a6089489355dea17fc0a37e 5")
+            await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH\nContoh: /k usdt 0x7382... 5")
             return
 
         token = args[0].upper()
@@ -77,13 +77,14 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         contract = web3.eth.contract(address=token_data["address"], abi=ERC20_ABI)
         decimals = token_data["decimals"]
 
-        # Tentuin jumlah token yg dikirim
-if token == "DAI":
-    amount = 10**13  # 0.01 DAI
-elif token in ["USDT", "USDC"]:
-    amount = 10000   # 0.01 USDT/USDC
-else:
-    amount = 1       # fallback biar ga error
+        # === PASTE BLOK INI BUAT GANTI amount = 1 ===
+        if token == "DAI":
+            amount = 10**13 # 0.01 DAI
+        elif token in ["USDT", "USDC"]:
+            amount = 10000 # 0.01 USDT/USDC
+        else:
+            amount = 1
+        # === SAMPE SINI ===
 
         balance = contract.functions.balanceOf(WALLET_ADDRESS).call()
         if balance < amount * repeat:
@@ -91,7 +92,7 @@ else:
             return
 
         await update.message.reply_text(f"Mulai spam {repeat}x {amount/10**decimals} {token} ke {to_address[:10]}...")
-
+        
         sukses = 0
         for i in range(repeat):
             try:
@@ -120,7 +121,6 @@ else:
 
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
-
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
