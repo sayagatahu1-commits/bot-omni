@@ -82,39 +82,44 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 to_addr = Web3.to_checksum_address(args[0])
                 val = args[1].lower().replace('x', '')
-                # Kalo bulat & >= 1 = repeat, kalo desimal = amount
-                if '.' not in val and float(val) >= 1:
-                    repeat = int(val)
-                else:
-                    amount = float(val)
+                try:
+                    # Kalo bulat = repeat, kalo desimal = amount
+                    if val.isdigit() and int(val) >= 1:
+                        repeat = int(val)
+                    else:
+                        amount = float(val)
+                except:
+                    await update.message.reply_text(f'Angka gak valid: {args[1]}')
+                    return
 
         elif len(args) == 3:
             if first_arg in TOKEN_LIST or first_arg == "ETH":
                 token = first_arg
                 to_addr = Web3.to_checksum_address(args[1])
                 val = args[2].lower().replace('x', '')
-                # Kalo bulat & >= 1 = repeat, kalo desimal = amount
-                if '.' not in val and float(val) >= 1:
-                    repeat = int(val)
-                    if token == "ETH": amount = 0.0001
-                else:
-                    amount = float(val)
-                    if token == "ETH" and amount == 0.01: amount = 0.0001
+                try:
+                    if val.isdigit() and int(val) >= 1:
+                        repeat = int(val)
+                        if token == "ETH": amount = 0.0001
+                    else:
+                        amount = float(val)
+                        if token == "ETH" and amount == 0.01: amount = 0.0001
+                except:
+                    await update.message.reply_text(f'Angka gak valid: {args[2]}')
+                    return
             else:
                 to_addr = Web3.to_checksum_address(args[0])
                 amount = float(args[1])
-                repeat_str = args[2].lower().replace('x', '')
-                repeat = int(repeat_str)
+                repeat = int(args[2].lower().replace('x', ''))
 
         elif len(args) == 4:
             token = args[0].upper()
             to_addr = Web3.to_checksum_address(args[1])
             amount = float(args[2])
-            repeat_str = args[3].lower().replace('x', '')
-            repeat = int(repeat_str)
+            repeat = int(args[3].lower().replace('x', ''))
         else:
             await update.message.reply_text(
-                'Simple mode:\n'
+                'Format:\n'
                 '/k 0xalamat → 0.01 USDT 1x\n'
                 '/k 0xalamat 5 → 0.01 USDT 5x\n'
                 '/k dai 0xalamat 5 → 0.01 DAI 5x\n'
@@ -134,7 +139,8 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f'Token {token} gak ada di list bre')
             return
 
-        msg = await update.message.reply_text(f'Spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
+        await update.message.reply_text(f'Siap spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
+
         nonce = w3.eth.get_transaction_count(acct.address)
         chain_id = w3.eth.chain_id
         gas_price = w3.eth.gas_price
@@ -165,8 +171,6 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 w3.eth.send_raw_transaction(signed_tx.rawTransaction)
                 success += 1
-                if (i + 1) % 5 == 0 or i == repeat - 1:
-                    await msg.edit_text(f'Progress: {i+1}/{repeat} ✅')
                 await asyncio.sleep(0.3)
             except Exception as e:
                 await update.message.reply_text(f'TX ke-{i+1} gagal: {str(e)[:80]}')
@@ -174,5 +178,6 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         total = amount * success
         await update.message.reply_text(f'✅ Done {success}x! Total: {total:.4f} {token}')
+
     except Exception as e:
-        await update.message.reply_text(f'Error: {e}')
+        await update.message.reply_text(f'Error fatal: {e}')
