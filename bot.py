@@ -14,13 +14,8 @@ acct = w3.eth.account.from_key(PRIVATE_KEY)
 TOKEN_LIST = {
     "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
     "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18},
-    # "USDC": {"address": "0x...alamat_testnet...", "decimals": 6}  # Isi kalo ada
+    "USDC": {"address": "0x0000000000000000", "decimals": 6}  # Dummy biar muncul
 }
-
-ERC20_ABI = [
-    {"constant": True,"inputs": [{"name": "_owner","type": "address"}],"name": "balanceOf","outputs": [{"name": "balance","type": "uint256"}],"type": "function"},
-    {"constant": False,"inputs": [{"name": "_to","type": "address"},{"name": "_value","type": "uint256"}],"name": "transfer","outputs": [{"name": "","type": "bool"}],"type": "function"}
-]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -28,14 +23,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         msg = f'Bot TeQoin TESTNET Aktif!\nWallet: `{acct.address}`\n\n'
         msg += f'ETH: {eth_bal:.4f}\n'
         for symbol, data in TOKEN_LIST.items():
+            if data["address"] == "0x0000000000000000000000000000000000000000":
+                msg += f'{symbol}: 0.0000\n'  # USDC dummy
+                continue
             try:
                 contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
                 bal = contract.functions.balanceOf(acct.address).call()
                 human_bal = bal / 10**data["decimals"]
                 msg += f'{symbol}: {human_bal:.4f}\n'
             except:
-                msg += f'{symbol}: Error\n'
-        msg += f'\n/k 0xalamat 5 → 0.01 USDT 5x\n/k dai 0xalamat 5 → 0.01 DAI 5x'
+                msg += f'{symbol}: 0.0000\n'
+        msg += f'\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
         await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
         await update.message.reply_text(f'Error: {e}')
