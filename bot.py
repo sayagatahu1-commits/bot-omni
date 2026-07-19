@@ -88,77 +88,45 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         args = context.args
-        if len(args)!= 3:
-            await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH\nContoh: /k usdt 0x7382... 5")
-            return
-
-        token = args[0].upper()
+        token = args[0].lower()
         to_address = Web3.to_checksum_address(args[1])
-        repeat = int(args[2])
-
-        if token not in TOKEN_LIST:
-            await update.message.reply_text(f"Token {token} ga ada. Pilih: DAI, USDT, USDC")
-            return
-
-        if repeat < 1 or repeat > 20:
-            await update.message.reply_text("Jumlah spam 1-20x aja bre")
-            return
-
-        token_data = TOKEN_LIST[token]
-        contract = web3.eth.contract(address=token_data["address"], abi=ERC20_ABI)
-        decimals = token_data["decimals"]
-
-        if token == "DAI":
-            amount = 10**13
-        elif token in ["USDT", "USDC"]:
-            amount = 10000
-        else:
-            amount = 1
-
-        balance = contract.functions.balanceOf(WALLET_ADDRESS).call()
-        if balance < amount * repeat:
-            await update.message.reply_text(f"Saldo {token} kurang. Butuh minimal {amount * repeat / 10**decimals} {token}")
-            return
-
-        await update.message.reply_text(f"Mulai spam {repeat}x {amount/10**decimals} {token} ke {to_address[:10]}...")
-
+        jumlah = int(args[2])
+        
+        contract = web3.eth.contract(address=CONTRACTS[token], abi=ERC20_ABI)
+        decimals = contract.functions.decimals().call()
+        amount = int(0.01 * (10 ** decimals))
+        
+        await update.message.reply_text(f"Mulai spam {jumlah}x 0.01 {token.upper()} ke {to_address[:10]}...")
+        
         sukses = 0
-        for i in range(repeat):
+        for i in range(jumlah):
             try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
-                gas_price = int(web3.eth.gas_price * 1.5)
-
+                # FIX 1: Pake 'latest' bukan 'pending'
+                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'latest')
+                
+                # FIX 2: Gas murah, ga pake * 1.5
+                gas_price = web3.eth.gas_price
+                
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
-                    'gas': 100000,
+                    'gas': 65000, # FIX 3: Turunin dari 100000
                     'gasPrice': gas_price,
                     'chainId': CHAIN_ID
                 })
-
-                signed = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed.rawTransaction)
-
-                await update.message.reply_text(f"[{i+1}/{repeat}] Broadcast: {tx_hash.hex()}")
-
-                try:
-                    receipt = web3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
-                    if receipt.status == 1:
-                        sukses += 1
-                        await update.message.reply_text(f"[{i+1}/{repeat}] ✅ CONFIRMED Block {receipt.blockNumber}")
-                    else:
-                        await update.message.reply_text(f"[{i+1}/{repeat}] ❌ FAILED: TX Reverted")
-                except Exception as e:
-                    await update.message.reply_text(f"[{i+1}/{repeat}] ⚠️ TIMEOUT: {type(e).__name__}")
-
-                await asyncio.sleep(5)
-
+                
+                signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                sukses += 1
+                await asyncio.sleep(2)
+                
             except Exception as e:
-                await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:100]}")
+                await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)}")
                 break
-
-        await update.message.reply_text(f"SELESAI. Berhasil {sukses}/{repeat}x kirim {token}")
-
+        
+        await update.message.reply_text(f"SELESAI. Berhasil {sukses}/{jumlah}x kirim {token.upper()}")
+        
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
