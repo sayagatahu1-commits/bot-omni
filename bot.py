@@ -1,20 +1,25 @@
 import os
 from web3 import Web3
 
-print("=== SEMUA ENV YANG KEBACA ===")
-for k, v in os.environ.items():
-    if 'TOKEN' in k or 'PRIVATE' in k or 'RAILWAY' in k:
-        print(f"{k} = {v[:10]}...") # print 10 karakter pertama aja
-print("============================")
+# Ambil semua env yang ada kata 'PRIVATE' sama 'TOKEN'
+PRIVATE_KEY = None
+BOT_TOKEN = None
 
-BOT_TOKEN = os.getenv("8686470947:AAHEhEuZ1PN2wDZzCFpHgjIcbcx6ezB9nPo")
-PRIVATE_KEY = os.getenv("0x4cb91ae51c9f26e961ce3f7d0410a3091a3b2c6c16e1e067b234bf47dd93be42")
+for key, value in os.environ.items():
+    if 'PRIVATE_KEY' in key:
+        PRIVATE_KEY = value.strip()
+    if 'BOT_TOKEN' in key:
+        BOT_TOKEN = value.strip()
+
+print(f"BOT_TOKEN: {BOT_TOKEN[:10]}...")
+print(f"PRIVATE_KEY: {PRIVATE_KEY[:10]}...")
 
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY KOSONG! Cek Variables Railway")
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN KOSONG! Cek Variables Railway")
 
 RPC_URL = "https://omni-testnet.blastapi.io/1b3c4d2e-5f6a-7b8c-9d0e-1f2a3b4c5d6e"
-# ... kode sisanya
 BRIDGE = Web3.to_checksum_address("0x2D6e44f44A83D5B99BC0745f10d1C4b8BFFF0e7d")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
