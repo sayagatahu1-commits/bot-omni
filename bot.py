@@ -65,26 +65,30 @@ async def send(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = float(args[2])
         nonce = w3.eth.get_transaction_count(acct.address)
 
+        # Ambil chainId langsung dari RPC biar gak salah
+        chain_id = w3.eth.chain_id
+        gas_price = w3.eth.gas_price
+
         if token == "ETH":
             tx = {
-                'from': acct.address,
+                # HAPUS 'from' Biar web3 yg isi dari private key
                 'to': to_addr,
                 'value': w3.to_wei(amount, 'ether'),
                 'gas': 21000,
-                'gasPrice': w3.eth.gas_price,
-                'nonce': nonce
-                # HAPUS chainId
+                'gasPrice': gas_price,
+                'nonce': nonce,
+                'chainId': chain_id # Pake chainId asli dari RPC
             }
         elif token in TOKEN_LIST:
             data = TOKEN_LIST[token]
             contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
             amount_wei = int(amount * 10**data["decimals"])
             tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
-                'from': acct.address,
+                # HAPUS 'from'
                 'gas': 100000,
-                'gasPrice': w3.eth.gas_price,
-                'nonce': nonce
-                # HAPUS chainId
+                'gasPrice': gas_price,
+                'nonce': nonce,
+                'chainId': chain_id # Pake chainId asli dari RPC
             })
         else:
             await update.message.reply_text('Token cuma: ETH, DAI, USDT, USDC')
