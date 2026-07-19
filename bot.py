@@ -4,8 +4,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
 
 # ========== CONFIG ==========
-BOT_TOKEN = "ISI_TOKEN_BOT_LU_DISINI"
-PRIVATE_KEY = "ISI_PRIVATE_KEY_LU_DISINI"
+BOT_TOKEN = "8686470947:AAHEhEuZ1PN2wDZzCFpHgjIcbcx6ezB9nPo"
+PRIVATE_KEY = "0x4cb91ae51c9f26e961ce3f7d0410a3091a3b2c6c16e1e067b234bf47dd93be42"
 WALLET_ADDRESS = "0xE26175623a2A923F076c78da46f3C03ec89f802C"
 
 RPC_URL = "https://rpc-testnet.teqoin.io"
