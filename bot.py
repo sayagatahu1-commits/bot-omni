@@ -14,7 +14,6 @@ CHAIN_ID = 12001
 web3 = Web3(Web3.HTTPProvider(RPC_URL))
 
 TOKEN_LIST = {
-TOKEN_LIST = {
     "DAI": {
         "address": Web3.to_checksum_address("0xb96a869c74be2ed561d95a77408505371f287d16"),
         "decimals": 18
@@ -28,7 +27,6 @@ TOKEN_LIST = {
         "decimals": 6
     }
 }
-
 ERC20_ABI = [{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
