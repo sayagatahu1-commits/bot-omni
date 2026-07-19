@@ -1,10 +1,14 @@
 import os
 from web3 import Web3
 
+print("=== SEMUA ENV YANG KEBACA ===")
+for k, v in os.environ.items():
+    if 'TOKEN' in k or 'PRIVATE' in k or 'RAILWAY' in k:
+        print(f"{k} = {v[:10]}...") # print 10 karakter pertama aja
+print("============================")
+
 BOT_TOKEN = os.getenv("8686470947:AAHEhEuZ1PN2wDZzCFpHgjIcbcx6ezB9nPo")
 PRIVATE_KEY = os.getenv("0x4cb91ae51c9f26e961ce3f7d0410a3091a3b2c6c16e1e067b234bf47dd93be42")
-print(f"BOT_TOKEN ada gak: {BOT_TOKEN is not None}") # buat debug
-print(f"PRIVATE_KEY ada gak: {PRIVATE_KEY is not None}") # buat debug
 
 if not PRIVATE_KEY:
     raise ValueError("PRIVATE_KEY KOSONG! Cek Variables Railway")
