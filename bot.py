@@ -13,7 +13,8 @@ acct = w3.eth.account.from_key(PRIVATE_KEY)
 
 TOKEN_LIST = {
     "USDT": {"address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", "decimals": 6},
-    "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18}
+    "DAI": {"address": "0xb96a869c74be2ed561d95a77408505371f287d16", "decimals": 18},
+    # "USDC": {"address": "0x...alamat_testnet...", "decimals": 6}  # Isi kalo ada
 }
 
 ERC20_ABI = [
@@ -26,20 +27,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         eth_bal = w3.from_wei(w3.eth.get_balance(acct.address), 'ether')
         msg = f'Bot TeQoin TESTNET Aktif!\nWallet: `{acct.address}`\n\n'
         msg += f'ETH: {eth_bal:.4f}\n'
-
         for symbol, data in TOKEN_LIST.items():
             try:
                 contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
                 bal = contract.functions.balanceOf(acct.address).call()
                 human_bal = bal / 10**data["decimals"]
                 msg += f'{symbol}: {human_bal:.4f}\n'
-            except Exception as e:
-                msg += f'{symbol}: Gagal load\n'
-
-        msg += f'\nSimple mode:\n/k 0xalamat → 0.01 USDT 1x\n/k 0xalamat 5 → 0.01 USDT 5x\n/k eth 0xalamat → 0.0001 ETH 1x'
+            except:
+                msg += f'{symbol}: Error\n'
+        msg += f'\n/k 0xalamat 5 → 0.01 USDT 5x\n/k dai 0xalamat 5 → 0.01 DAI 5x'
         await update.message.reply_text(msg, parse_mode='Markdown')
     except Exception as e:
-        await update.message.reply_text(f'Error /start: {e}')
+        await update.message.reply_text(f'Error: {e}')
 
 async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -47,122 +46,100 @@ async def k(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token = "USDT"
         amount = 0.01
         repeat = 1
-        to_addr = None
 
         if len(args) == 0:
             await update.message.reply_text('Pake: /k 0xalamat')
             return
 
-        first_arg = args[0].upper()
+        # Default
+        to_addr = Web3.to_checksum_address(args[0])
 
-        if len(args) == 1:
-            to_addr = Web3.to_checksum_address(args[0])
-
-        elif len(args) == 2:
-            if first_arg in TOKEN_LIST or first_arg == "ETH":
-                token = first_arg
+        # /k 0xalamat 5
+        if len(args) == 2:
+            if args[0].upper() in TOKEN_LIST or args[0].upper() == "ETH":
+                token = args[0].upper()
                 to_addr = Web3.to_checksum_address(args[1])
                 if token == "ETH": amount = 0.0001
             else:
                 to_addr = Web3.to_checksum_address(args[0])
-                val = args[1].lower().replace('x', '')
+                x = args[1].lower().replace('x', '')
                 try:
-                    if val.isdigit() and int(val) >= 1:
-                        repeat = int(val)
-                    else:
-                        amount = float(val)
+                    if '.' not in x: # angka bulat = repeat
+                        repeat = int(x)
+                    else: # ada koma = amount
+                        amount = float(x)
                 except:
-                    await update.message.reply_text(f'Angka gak valid: {args[1]}')
-                    return
+                    pass
 
+        # /k dai 0xalamat 5
         elif len(args) == 3:
-            if first_arg in TOKEN_LIST or first_arg == "ETH":
-                token = first_arg
+            if args[0].upper() in TOKEN_LIST or args[0].upper() == "ETH":
+                token = args[0].upper()
                 to_addr = Web3.to_checksum_address(args[1])
-                val = args[2].lower().replace('x', '')
+                x = args[2].lower().replace('x', '')
                 try:
-                    if val.isdigit() and int(val) >= 1:
-                        repeat = int(val)
+                    if '.' not in x:
+                        repeat = int(x)
                         if token == "ETH": amount = 0.0001
                     else:
-                        amount = float(val)
+                        amount = float(x)
                         if token == "ETH" and amount == 0.01: amount = 0.0001
                 except:
-                    await update.message.reply_text(f'Angka gak valid: {args[2]}')
-                    return
+                    pass
             else:
                 to_addr = Web3.to_checksum_address(args[0])
                 amount = float(args[1])
                 repeat = int(args[2].lower().replace('x', ''))
 
+        # /k dai 0xalamat 0.1 5
         elif len(args) == 4:
             token = args[0].upper()
             to_addr = Web3.to_checksum_address(args[1])
             amount = float(args[2])
             repeat = int(args[3].lower().replace('x', ''))
-        else:
-            await update.message.reply_text('Format salah bre')
-            return
 
         if repeat > 20:
-            await update.message.reply_text('Maks 20x bre 😭')
+            await update.message.reply_text('Maks 20x bre')
             return
-        if repeat < 1:
-            await update.message.reply_text('Minimal 1x bre 😂')
-            return
-
         if token!= "ETH" and token not in TOKEN_LIST:
-            await update.message.reply_text(f'Token {token} gak ada di list bre')
+            await update.message.reply_text(f'Token {token} gak ada')
             return
 
-        await update.message.reply_text(f'Siap spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
+        await update.message.reply_text(f'Spam {amount} {token} ke {to_addr[:8]}... {repeat}x 🏃💨')
 
         nonce = w3.eth.get_transaction_count(acct.address)
         chain_id = w3.eth.chain_id
         gas_price = w3.eth.gas_price
-
         success = 0
+
         for i in range(repeat):
             try:
                 if token == "ETH":
-                    tx = {
-                        'to': to_addr,
-                        'value': w3.to_wei(amount, 'ether'),
-                        'gas': 21000,
-                        'gasPrice': gas_price,
-                        'nonce': nonce + i,
-                        'chainId': chain_id
-                    }
+                    tx = {'to': to_addr,'value': w3.to_wei(amount, 'ether'),'gas': 21000,'gasPrice': gas_price,'nonce': nonce + i,'chainId': chain_id}
                 else:
                     data = TOKEN_LIST[token]
                     contract = w3.eth.contract(address=Web3.to_checksum_address(data["address"]), abi=ERC20_ABI)
                     amount_wei = int(amount * 10**data["decimals"])
-                    tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
-                        'gas': 100000,
-                        'gasPrice': gas_price,
-                        'nonce': nonce + i,
-                        'chainId': chain_id
-                    })
+                    tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({'gas': 100000,'gasPrice': gas_price,'nonce': nonce + i,'chainId': chain_id})
 
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 w3.eth.send_raw_transaction(signed_tx.rawTransaction)
                 success += 1
                 await asyncio.sleep(0.3)
             except Exception as e:
-                await update.message.reply_text(f'TX ke-{i+1} gagal: {str(e)[:80]}')
+                await update.message.reply_text(f'TX ke-{i+1} gagal: {str(e)[:60]}')
                 break
 
         total = amount * success
         await update.message.reply_text(f'✅ Done {success}x! Total: {total:.4f} {token}')
-
     except Exception as e:
-        await update.message.reply_text(f'Error fatal: {e}')
+        await update.message.reply_text(f'Error: {e}')
 
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("k", k))
-    print("Bot jalan bre...")
+    print("Bot jalan...")
     app.run_polling()
 
 if __name__ == '__main__':
