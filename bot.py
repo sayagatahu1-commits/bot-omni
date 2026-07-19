@@ -24,15 +24,15 @@ ERC20_ABI = [
 # ========== TEMPEL 3 CONTRACT ASLI DARI TEQOIN WALLET DI SINI ==========
 TOKEN_LIST = {
     "DAI": {
-        "address": "0xd983010d05846765746889676f312e32312e3133856c696e7578", # Klik DAI di wallet → Copy Contract
+        "address": "0xb96a869c74be2ed561d95a77408505371f287d16", # Klik DAI di wallet → Copy Contract
         "decimals": 18
     },
     "USDT": {
-        "address": "0x0450391ff67a5d439a6dfb9a01e60bfe3379134a", # Klik USDT di wallet → Copy Contract
+        "address": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9", # Klik USDT di wallet → Copy Contract
         "decimals": 6
     },
     "USDC": {
-        "address": "0x0450391ff67a5d439a6dfb9a01e60bfe3379134a", # Klik USDC di wallet → Copy Contract
+        "address": "0xe819eb5be34b20f1fec012c0daf960397a0fb386", # Klik USDC di wallet → Copy Contract
         "decimals": 6
     },
 }
