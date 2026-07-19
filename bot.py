@@ -16,7 +16,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        amount = int(context.args[0])
+        amount = float(context.args[0])
         tx = {
             'to': BRIDGE,
             'value': w3.to_wei(amount, 'ether'),
