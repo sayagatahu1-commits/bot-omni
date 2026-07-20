@@ -141,13 +141,10 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     success_count = 0
     for i in range(loop_count): # <<< line 148
         try: # <<< HARUS MENJOROK 4 SPASI / 1 TAB DARI 'for'
-            nonce = w3.eth.get_transaction_count(sender_address)
+            nonce = w3.eth.get_transaction_count(sender_address, 'pending')
             bridge_contract = w3.eth.contract(address=Web3.to_checksum_address(BRIDGE_CONTRACT), abi=BRIDGE_ABI)
 
-for i in range(loop_count):
-    try:
-        nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-        
+    
         # 1. Approve dulu token ke bridge
         approve_tx = token_contract.functions.approve(
             BRIDGE_CONTRACT, 
