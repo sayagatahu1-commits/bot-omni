@@ -2,6 +2,7 @@ import os
 import logging
 import time
 from web3 import Web3
+from web3.middleware import geth_poa_middleware
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Application
 
@@ -10,37 +11,18 @@ RPC_URL = os.getenv("RPC_URL")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
-# LANGSUNG PAKE CHECKSUM, GA USAH PANGGIL to_checksum_address()
+# TULIS LOWERCASE AJA, BIARIN KODE YG URUS CHECKSUM
 BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
-BRIDGE_ABI = [
-    {
-        "inputs": [
-            {"internalType": "address", "name": "token", "type": "address"},
-            {"internalType": "uint256", "name": "amount", "type": "uint256"}
-        ],
-        "name": "bridgeTokens",
-        "outputs": [{"internalType": "bytes32", "name": "withdrawalId", "type": "bytes32"}],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {"internalType": "address", "name": "token", "type": "address"},
-            {"internalType": "uint256", "name": "amount", "type": "uint256"}
-        ],
-        "name": "quoteBridgeFee",
-        "outputs": [{"internalType": "uint256", "name": "fee", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    }
-]
-
-# PAKE CHECKSUM LANGSUNG - INI UDAH GUA CONVERTIN
 TOKENS = {
-    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfE6E9",
-    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fB386",
-    "DAI": "0xb96a869c74bE2eD561D95A7740850371f287D16",
+    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
+    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
+    "DAI": "0xb96a869c74be2ed561d95a7740850371f287d16",
 }
+
+BRIDGE_ABI = [
+    {"inputs": [{"internalType": "address", "name": "token", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "bridgeTokens", "outputs": [{"internalType": "bytes32", "name": "withdrawalId", "type": "bytes32"}], "stateMutability": "payable", "type": "function"},
+    {"inputs": [{"internalType": "address", "name": "token", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "quoteBridgeFee", "outputs": [{"internalType": "uint256", "name": "fee", "type": "uint256"}], "stateMutability": "view", "type": "function"}
+]
 
 TEQOIN_TOKEN_ABI = [
     {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
@@ -50,8 +32,12 @@ TEQOIN_TOKEN_ABI = [
 ]
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
+w3.middleware_onion.inject(geth_poa_middleware, layer=0) # WAJIB BUAT TEQOIN
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 logging.basicConfig(level=logging.INFO)
+
+# FUNGSI SAKTI: AUTO CHECKSUM APAPUN INPUTNYA
+def addr(a): return Web3.to_checksum_address(a.strip().lower())
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
@@ -73,14 +59,14 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         token = context.args[0].upper()
-        to_address = Web3.to_checksum_address(context.args[1].strip()) #.strip() buat jaga2
+        to_address = addr(context.args[1])
         amount = float(context.args[2])
 
         if token not in TOKENS:
             await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
             return
 
-        token_address = TOKENS[token]
+        token_address = addr(TOKENS[token])
         contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         decimals = contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
@@ -113,9 +99,10 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
             return
 
-        token_address = TOKENS[token]
+        token_address = addr(TOKENS[token])
+        bridge_address = addr(BRIDGE_CONTRACT)
         token_contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
-        bridge_contract = w3.eth.contract(address=BRIDGE_CONTRACT, abi=BRIDGE_ABI)
+        bridge_contract = w3.eth.contract(address=bridge_address, abi=BRIDGE_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
 
@@ -124,11 +111,9 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success_count = 0
         for i in range(loop_count):
             try:
+                # 1. Approve
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-                approve_tx = token_contract.functions.approve(
-                    BRIDGE_CONTRACT,
-                    amount_wei
-                ).build_transaction({
+                approve_tx = token_contract.functions.approve(bridge_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
                     'gas': 100000,
                     'gasPrice': w3.eth.gas_price,
@@ -136,19 +121,12 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
                 w3.eth.send_raw_transaction(signed_approve.rawTransaction)
-                await update.message.reply_text(f"Approve {i+1}/{loop_count}...")
-                time.sleep(8)
+                time.sleep(5) # Dipercepat dikit
 
-                bridge_fee = bridge_contract.functions.quoteBridgeFee(
-                    token_address,
-                    amount_wei
-                ).call()
-
+                # 2. Bridge
+                bridge_fee = bridge_contract.functions.quoteBridgeFee(token_address, amount_wei).call()
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-                tx = bridge_contract.functions.bridgeTokens(
-                    token_address,
-                    amount_wei
-                ).build_transaction({
+                tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
                     'gas': 300000,
                     'gasPrice': w3.eth.gas_price,
@@ -158,22 +136,9 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-                receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-                withdrawal_id = "Cek di explorer"
-                if receipt['logs']:
-                    try:
-                        withdrawal_id = receipt['logs'][0]['topics'][1].hex()
-                    except:
-                        pass
-
                 success_count += 1
-                await update.message.reply_text(
-                    f"✅ Bridge {i+1}/{loop_count} Done\n"
-                    f"TxHash: `{tx_hash.hex()}`\n"
-                    f"Withdrawal ID: `{withdrawal_id}`",
-                    parse_mode='Markdown'
-                )
-                time.sleep(3)
+                await update.message.reply_text(f"✅ Bridge {i+1}/{loop_count} Done\nTxHash: `{tx_hash.hex()}`", parse_mode='Markdown')
+                time.sleep(2) # Dipercepat dikit
 
             except Exception as e:
                 await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} gagal: {str(e)}")
@@ -192,7 +157,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if token not in TOKENS:
             await update.message.reply_text(f"Token {token} ga ada")
             return
-        token_address = TOKENS[token]
+        token_address = addr(TOKENS[token])
         contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         decimals = contract.functions.decimals().call()
         bal = contract.functions.balanceOf(sender_address).call()
