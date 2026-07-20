@@ -28,8 +28,7 @@ BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"addre
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
- logging.basicConfig(level=logging.INFO)
- logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
