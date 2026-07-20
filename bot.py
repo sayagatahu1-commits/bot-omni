@@ -3,89 +3,105 @@ import logging
 from web3 import Web3
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from eth_account import Account
-
-logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv("TOKEN")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-RPC_URL = os.getenv("RPC_URL")
+CHAIN_ID = int(os.getenv("CHAIN_ID", "97"))
+RPC_URL = "https://rpc.teqoin.io/testnet"
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
-account = w3.eth.account.from_key(PRIVATE_KEY)
+sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 
-TOKEN_CONTRACTS = {
-    "usdt": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
-    "usdc": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
-    "dai": "0xb96a869c74be2ed561d95a77408505371f287d16"
+# List token lu
+TOKENS = {
+    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
+    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
+    "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
+    "TTEQ": "NATIVE" # Buat kirim coin native
 }
 
-ERC20_ABI = [{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},{"constant":True,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}]
+# ABI standar ERC20 buat transfer
+erc20_abi = [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]
+
+logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Bot TeQoin Testnet Spam Ready!\n\n"
-        "/send usdt 0xAlamat 1.5\n"
-        "/balance usdt\n"
-        "/debug"
+        "Bot TeQoin Testnet Ready!\n\n"
+        "Format:\n"
+        "/send USDT 0xAlamat 1.5\n"
+        "/send TTEQ 0xAlamat 0.01\n"
+        "/balance USDT\n"
+        "/balance TTEQ"
     )
 
-async def send_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        token = context.args[0].lower()
-        to_addr = context.args[1]
-        amount = float(context.args[2])
-
-        if token not in TOKEN_CONTRACTS:
-            await update.message.reply_text("Token ga ada. Pilih: usdt / usdc / dai")
+        if len(context.args)!= 3:
+            await update.message.reply_text("Format: /send TOKEN 0xAlamat 1.5\nContoh: /send USDT 0xE26175623a2A923F076c78da46f3C03ec89f802C 0.01")
             return
 
-        msg = await update.message.reply_text(f"Kirim {amount} {token.upper()} ke {to_addr[:10]}...")
+        token_symbol = context.args[0].upper()
+        to_address = Web3.to_checksum_address(context.args[1])
+        amount = float(context.args[2])
 
-        contract = w3.eth.contract(address=TOKEN_CONTRACTS[token], abi=ERC20_ABI)
-        decimals = contract.functions.decimals().call()
-        amount_wei = int(amount * 10**decimals)
-        nonce = w3.eth.get_transaction_count(account.address, 'pending')
+        if token_symbol not in TOKENS:
+            await update.message.reply_text(f"Token ga ada woy. Pilih: {', '.join(TOKENS.keys())}")
+            return
 
-        tx = contract.functions.transfer(to_addr, amount_wei).build_transaction({
-            'chainId': CHAIN_ID,
-            'gas': 100000,
-            'gasPrice': w3.to_wei('50', 'gwei'),
-            'nonce': nonce,
-        })
+        # Kalo kirim native TTEQ
+        if TOKENS[token_symbol] == "NATIVE":
+            tx = {
+                'nonce': w3.eth.get_transaction_count(sender_address),
+                'to': to_address,
+                'value': w3.to_wei(amount, 'ether'),
+                'gas': 21000,
+                'gasPrice': w3.to_wei('5', 'gwei'),
+                'chainId': CHAIN_ID
+            }
+        # Kalo kirim token ERC20
+        else:
+            contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
+            amount_wei = w3.to_wei(amount, 'ether') # Asumsi semua token 18 decimal
+            tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
+                'from': sender_address,
+                'nonce': w3.eth.get_transaction_count(sender_address),
+                'gas': 100000,
+                'gasPrice': w3.to_wei('5', 'gwei'),
+                'chainId': CHAIN_ID
+            })
 
-        signed = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction).hex()
-
-        await msg.edit_text(f"Done! ✅\nTx: https://explorer.teqoin.io/testnet/tx/{tx_hash}")
+        signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        await update.message.reply_text(f"✅ {token_symbol} Terkirim!\nTx: 0x{tx_hash.hex()}")
 
     except Exception as e:
-        await update.message.reply_text(f"Error woy: {str(e)}")
+        await update.message.reply_text(f"Error woy: {e}")
 
-async def balance_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        token = context.args[0].lower() if context.args else "usdt"
-        contract = w3.eth.contract(address=TOKEN_CONTRACTS[token], abi=ERC20_ABI)
-        decimals = contract.functions.decimals().call()
-        bal = contract.functions.balanceOf(account.address).call()
-        await update.message.reply_text(f"Saldo {token.upper()}: {bal / 10**decimals}")
+        if len(context.args)!= 1:
+            await update.message.reply_text("Format: /balance TOKEN\nContoh: /balance USDT")
+            return
+
+        token_symbol = context.args[0].upper()
+        if token_symbol not in TOKENS:
+            await update.message.reply_text(f"Token ga ada woy. Pilih: {', '.join(TOKENS.keys())}")
+            return
+
+        if TOKENS[token_symbol] == "NATIVE":
+            balance = w3.eth.get_balance(sender_address)
+            await update.message.reply_text(f"Saldo TTEQ: {w3.from_wei(balance, 'ether')}")
+        else:
+            contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
+            balance = contract.functions.balanceOf(sender_address).call()
+            await update.message.reply_text(f"Saldo {token_symbol}: {w3.from_wei(balance, 'ether')}")
+
     except Exception as e:
-        await update.message.reply_text(f"Error: {str(e)}")
+        await update.message.reply_text(f"Error: {e}")
 
-async def debug_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    native = w3.from_wei(w3.eth.get_balance(account.address), 'ether')
-    await update.message.reply_text(
-        f"Wallet: {account.address}\n"
-        f"Connected: {w3.is_connected()}\n"
-        f"Block: {w3.eth.block_number}\n"
-        f"Gas Native: {native}"
-    )
-
-if __name__ == '__main__':
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("send", send_cmd))
-    app.add_handler(CommandHandler("balance", balance_cmd))
-    app.add_handler(CommandHandler("debug", debug_cmd))
-    app.run_polling()
+app = ApplicationBuilder().token(TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("send", send_token))
+app.add_handler(CommandHandler("balance", balance))
+app.run_polling()
