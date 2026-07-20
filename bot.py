@@ -85,7 +85,6 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Send gagal: {str(e)}")
 
 async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
-async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args or len(context.args) < 2:
             await update.message.reply_text("Format: /bridge USDT 0.01 [jumlah]")
@@ -114,14 +113,12 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ Saldo kurang. Punya: {balance / 10**decimals} {token}")
             return
 
-        # SKIP quoteBridgeFee, LANGSUNG PAKE FEE = 0 KAYAK WALLET
         bridge_fee = 0
-        await update.message.reply_text(f"Bridge {token} {amount} x{loop_count} ke Sepolia... Fee: 0 ETH")
+        await update.message.reply_text(f"Bridge {token} {amount} x{loop_count} ke Sepolia...")
 
         success_count = 0
         for i in range(loop_count):
             try:
-                # 1. APPROVE
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 approve_tx = token_contract.functions.approve(bridge_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
@@ -134,14 +131,13 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Approve {i+1}/{loop_count}...")
                 w3.eth.wait_for_transaction_receipt(approve_hash, timeout=120)
 
-                # 2. BRIDGE LANGSUNG, VALUE = 0
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
                     'gas': 300000,
                     'gasPrice': w3.eth.gas_price,
                     'nonce': nonce,
-                    'value': bridge_fee # 0
+                    'value': bridge_fee
                 })
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -151,7 +147,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     success_count += 1
                     await update.message.reply_text(f"✅ Bridge {i+1}/{loop_count} Done\nTxHash: `{tx_hash.hex()}`", parse_mode='Markdown')
                 else:
-                    await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} revert. Cek explorer")
+                    await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} revert di blockchain")
 
                 time.sleep(2)
 
