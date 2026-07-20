@@ -52,8 +52,11 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         nonce = w3.eth.get_transaction_count(sender_address)
-        max_priority_fee = 1
-        max_fee_per_gas = 1
+
+        # Ambil baseFee dari chain, jangan hardcode 1 wei lagi
+        base_fee = w3.eth.get_block('latest')['baseFeePerGas']
+        max_priority_fee = w3.to_wei(1, 'gwei') # tip 1 gwei biar aman
+        max_fee_per_gas = base_fee + max_priority_fee
 
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
