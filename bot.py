@@ -116,7 +116,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cek", cek))
     app.add_handler(CommandHandler("k", handle_k_command))
-    app.run_polling()
+    # INI YG DITAMBAH: BUANG UPDATE NUMPUK BIAR GA CONFLICT
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
