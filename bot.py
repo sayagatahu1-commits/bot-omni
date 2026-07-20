@@ -120,43 +120,57 @@ async def handle_testkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
 
-# TERUS PASTIIN ADA BARIS INI DI BAGIAN application.add_handler LAINNYA:
-application.add_handler(CommandHandler("testkey", handle_testkey))
-    except Exception as e:
-        await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
+async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if not web3.is_connected():
+            await update.message.reply_text("RPC MATI")
+            return
+
+        if len(context.args) < 3:
+            await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH")
+            return
+
+        token = context.args[0].lower()
+        if token not in CONTRACTS:
+            await update.message.reply_text(f"Token {token} ga ada. Pilih: dai, usdt, usdc")
+            return
+
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
 
         gas_limit = 40000
         gas_price = web3.to_wei('0.0001', 'gwei')
+        chain_id = web3.eth.chain_id
 
         eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
-        if eth_balance < gas_limit * gas_price:
-            await update.message.reply_text(f"Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} kurang buat gas.")
+        biaya_aktivasi = 21000 * gas_price + web3.to_wei('0.0001', 'ether')
+
+        if eth_balance < biaya_aktivasi:
+            await update.message.reply_text(f"Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} kurang. Butuh {web3.from_wei(biaya_aktivasi, 'ether'):.12f} buat aktivasi.")
             return
 
-        await update.message.reply_text(f"Aktivasi wallet dulu...")
+        await update.message.reply_text(f"Aktivasi wallet: kirim 0.0001 ETH ke diri sendiri...")
 
-        # 1. KIRIM 0 ETH KE DIRI SENDIRI BIAR AKTIF
         try:
             nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
-            tx = contract.functions.transfer(to_address, amount).build_transaction({
-    'from': WALLET_ADDRESS,
-    'nonce': nonce,
-    'gas': gas_limit,
-    'gasPrice': gas_price,
-    'chainId': web3.eth.chain_id # Pake : bukan =, key-nya 'chainId'
-})
+            tx_aktivasi = {
+                'from': WALLET_ADDRESS,
+                'to': WALLET_ADDRESS,
+                'value': web3.to_wei('0.0001', 'ether'),
+                'nonce': nonce,
+                'gas': 21000,
+                'gasPrice': gas_price,
+                'chainId': chain_id
+            }
             signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
-            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction) # pake underscore
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
             web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             await update.message.reply_text("Wallet aktif. Mulai spam token...")
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
         except Exception as e:
-            await update.message.reply_text(f"Gagal aktivasi: {str(e)[:200]}. Coba kirim 0.001 ETH dari wallet lu ke alamat ini dulu manual.")
+            await update.message.reply_text(f"Gagal aktivasi: {str(e)[:200]}")
             return
 
-        # 2. BARU SPAM TOKEN
         contract = web3.eth.contract(address=Web3.to_checksum_address(CONTRACTS[token]), abi=ERC20_ABI)
         decimals = contract.functions.decimals().call()
         amount = int(0.01 * (10 ** decimals))
@@ -170,10 +184,10 @@ application.add_handler(CommandHandler("testkey", handle_testkey))
                     'nonce': nonce,
                     'gas': gas_limit,
                     'gasPrice': gas_price,
-                    'chainId': CHAIN_ID
+                    'chainId': chain_id
                 })
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
                 web3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
                 sukses += 1
                 await update.message.reply_text(f"TX {i+1}/{jumlah} sukses: {tx_hash.hex()[:10]}...")
