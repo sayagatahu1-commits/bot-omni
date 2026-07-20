@@ -36,7 +36,7 @@ sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 logging.basicConfig(level=logging.INFO)
 
 def addr(a):
-    return Web3.to_checksum_address(a.strip().lower())
+    return Web3.to_checksum_address(a.strip())
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
@@ -79,7 +79,13 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        await update.message.reply_text(f"✅ Sent: `{tx_hash.hex()}`", parse_mode='Markdown')
+        await update.message.reply_text(f"Send dikirim\nHash: `{tx_hash.hex()}`", parse_mode='Markdown')
+
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+        if receipt.status == 1:
+            await update.message.reply_text(f"✅ Send berhasil")
+        else:
+            await update.message.reply_text(f"❌ Send revert di blockchain")
 
     except Exception as e:
         await update.message.reply_text(f"❌ Send gagal: {str(e)}")
@@ -128,8 +134,17 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
                 approve_hash = w3.eth.send_raw_transaction(signed_approve.rawTransaction)
-                await update.message.reply_text(f"Approve {i+1}/{loop_count}...")
-                w3.eth.wait_for_transaction_receipt(approve_hash, timeout=120)
+                await update.message.reply_text(f"Approve {i+1}/{loop_count} dikirim\nHash: `{approve_hash.hex()}`", parse_mode='Markdown')
+
+                try:
+                    receipt_approve = w3.eth.wait_for_transaction_receipt(approve_hash, timeout=300)
+                    if receipt_approve.status == 0:
+                        await update.message.reply_text(f"❌ Approve {i+1}/{loop_count} revert")
+                        continue
+                    await update.message.reply_text(f"Approve {i+1}/{loop_count} confirmed ✅")
+                except Exception as e:
+                    await update.message.reply_text(f"❌ Approve {i+1}/{loop_count} timeout 5 menit. RPC TeQoin lemot. Coba lagi nanti.\nHash: `{approve_hash.hex()}`", parse_mode='Markdown')
+                    continue
 
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
@@ -141,15 +156,17 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                await update.message.reply_text(f"Bridge {i+1}/{loop_count} dikirim\nHash: `{tx_hash.hex()}`", parse_mode='Markdown')
+
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
 
                 if receipt.status == 1:
                     success_count += 1
-                    await update.message.reply_text(f"✅ Bridge {i+1}/{loop_count} Done\nTxHash: `{tx_hash.hex()}`", parse_mode='Markdown')
+                    await update.message.reply_text(f"✅ Bridge {i+1}/{loop_count} Done")
                 else:
                     await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} revert di blockchain")
 
-                time.sleep(2)
+                time.sleep(3)
 
             except Exception as e:
                 await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} gagal: {str(e)}")
