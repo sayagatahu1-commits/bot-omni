@@ -140,8 +140,17 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("send", send_token))
-app.add_handler(CommandHandler("balance", balance))
-app.run_polling()
+async def post_init(application: Application):
+    await application.bot.set_my_commands([
+        ("start", "Cek wallet & menu"),
+        ("send", "Kirim token ke address lain"),
+        ("bridge", "Bridge token ke Sepolia - farming poin"),
+        ("balance", "Cek saldo token")
+    ])
+
+151  application = Application.builder().token(TOKEN).post_init(post_init).build()
+152  application.add_handler(CommandHandler("start", start))
+153  application.add_handler(CommandHandler("send", send_token))
+154  application.add_handler(CommandHandler("bridge", bridge_token))  # <<< INI WAJIB DITAMBAH
+155  application.add_handler(CommandHandler("balance", balance))
+156  application.run_polling()
