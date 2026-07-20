@@ -120,6 +120,12 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Format: /bridge TOKEN 0.01 [jumlah]")
             return
 
+        async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try: # ← TAMBAHIN INI WAJIB
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text("Format: /bridge TOKEN 0.01 [jumlah]")
+            return
+
         token = context.args[0].upper()
         amount = float(context.args[1])
         loop_count = int(context.args[2]) if len(context.args) > 2 else 1
@@ -143,7 +149,6 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success_count = 0
         for i in range(loop_count):
             try:
-                # Approve
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 approve_tx = token_contract.functions.approve(
                     BRIDGE_CONTRACT,
@@ -158,10 +163,9 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 w3.eth.send_raw_transaction(signed_approve.rawTransaction)
                 time.sleep(5)
 
-                # Bridge
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-                tx = bridge_contract.functions.send( # Ganti 'send' sesuai ABI lu
-                    1, # dest_domain Sepolia
+                tx = bridge_contract.functions.send(
+                    1,
                     amount_wei,
                     sender_address
                 ).build_transaction({
@@ -172,17 +176,16 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                        
                 success_count += 1
-        
-    except Exception as e:
-        await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
+                
+            except Exception as e:
+                await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
 
-    await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")
+        await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")
 
-except Exception as e:
-    await update.message.reply_text(f"❌ Bridge gagal: {str(e)}")
-    logging.error(f"Bridge error: {e}")
+    except Exception as e: # ← INI SEKARANG ADA PASANGANNYA
+        await update.message.reply_text(f"❌ Bridge gagal: {str(e)}")
+        logging.error(f"Bridge error: {e}")
                 
 async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
