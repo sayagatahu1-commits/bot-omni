@@ -15,7 +15,7 @@ CHAIN_ID = 22888
 CONTRACTS = {
     'usdt': Web3.to_checksum_address('0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9'),
     'usdc': Web3.to_checksum_address('0xe819eb5be34b20f1fec012c0daf960397a0fb386'),
-    'dai': Web3.to_checksum_address('0xb96a869c74be2ed56195a77408505371f287d16')
+    'dai': Web3.to_checksum_address('0xb96a869c74be2ed561d95a77408505371f287d16')
 }
 
 ERC20_ABI = [
