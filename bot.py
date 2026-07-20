@@ -9,6 +9,16 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID", "28516"))
 RPC_URL = os.getenv("RPC_URL", "https://rpc.teqoin.io/testnet")
 
+TOKENS = {
+    "ETH": "NATIVE",
+    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
+    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",  
+    "DAI":  "0xb96a869c74be2ed561d95a77408505371f287d16"
+}
+
+BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
+BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"uint256","name":"_destinationChainId","type":"uint256"}],"name":"bridgeToken","outputs":[],"stateMutability":"payable","type":"function"}]
+
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 
