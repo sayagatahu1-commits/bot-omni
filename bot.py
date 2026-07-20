@@ -39,61 +39,78 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        if len(context.args)!= 3:
-            await update.message.reply_text("Format: /send TOKEN 0xAlamat 1.5")
+        # Format: /send TOKEN 0xAlamat 0.01 5
+        if len(context.args) < 3 or len(context.args) > 4:
+            await update.message.reply_text("Format: /send TOKEN 0xAlamat 1.5 [jumlah]\nContoh: /send DAI 0x123.. 0.01 5")
             return
 
         token_symbol = context.args[0].upper()
         to_address = Web3.to_checksum_address(context.args[1])
         amount = float(context.args[2])
+        repeat = int(context.args[3]) if len(context.args) == 4 else 1
+
+        if repeat > 20:
+            await update.message.reply_text("Maks 20x sekali kirim biar ga spam woy")
+            return
 
         if token_symbol not in TOKENS:
             await update.message.reply_text(f"Token ga ada. Pilih: {', '.join(TOKENS.keys())}")
             return
 
-        nonce = w3.eth.get_transaction_count(sender_address)
+        await update.message.reply_text(f"Proses kirim {token_symbol} {amount} sebanyak {repeat}x...")
 
-        # Pake baseFee doang, tip = 0 wei
-        base_fee = w3.eth.get_block('latest')['baseFeePerGas']
-        max_priority_fee = 0 # GA PAKE TIP
-        max_fee_per_gas = base_fee
+        success_count = 0
+        total_fee = 0
 
-        if TOKENS[token_symbol] == "NATIVE":
-            tx = {
-                'nonce': nonce,
-                'to': to_address,
-                'value': w3.to_wei(amount, 'ether'),
-                'maxFeePerGas': max_fee_per_gas,
-                'maxPriorityFeePerGas': max_priority_fee,
-                'chainId': CHAIN_ID,
-                'type': 2
-            }
-            tx['gas'] = 21000
-        else:
-            contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
-            decimals = contract.functions.decimals().call()
-            amount_wei = int(amount * 10**decimals)
+        for i in range(repeat):
+            try:
+                nonce = w3.eth.get_transaction_count(sender_address)
+                base_fee = w3.eth.get_block('latest')['baseFeePerGas']
+                max_priority_fee = 0
+                max_fee_per_gas = base_fee
 
-            tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
-                'from': sender_address,
-                'nonce': nonce,
-                'maxFeePerGas': max_fee_per_gas,
-                'maxPriorityFeePerGas': max_priority_fee,
-                'chainId': CHAIN_ID,
-                'type': 2
-            })
-            # Manual gas 65000 biar ga di-estimate kegedean
-            tx['gas'] = 65000
+                if TOKENS[token_symbol] == "NATIVE":
+                    tx = {
+                        'nonce': nonce,
+                        'to': to_address,
+                        'value': w3.to_wei(amount, 'ether'),
+                        'maxFeePerGas': max_fee_per_gas,
+                        'maxPriorityFeePerGas': max_priority_fee,
+                        'chainId': CHAIN_ID,
+                        'type': 2,
+                        'gas': 21000
+                    }
+                else:
+                    contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
+                    decimals = contract.functions.decimals().call()
+                    amount_wei = int(amount * 10**decimals)
 
-        signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-        actual_fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+                    tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
+                        'from': sender_address,
+                        'nonce': nonce,
+                        'maxFeePerGas': max_fee_per_gas,
+                        'maxPriorityFeePerGas': max_priority_fee,
+                        'chainId': CHAIN_ID,
+                        'type': 2,
+                        'gas': 65000
+                    })
+
+                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+                fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+                total_fee += float(fee)
+                success_count += 1
+
+            except Exception as e:
+                await update.message.reply_text(f"Tx ke-{i+1} gagal: {e}")
+                break
 
         await update.message.reply_text(
-            f"✅ {token_symbol} Terkirim!\n"
-            f"Fee: {actual_fee} ETH\n"
-            f"https://testnet.teqchain.com/tx/0x{tx_hash.hex()}"
+            f"✅ Selesai!\n"
+            f"Berhasil: {success_count}/{repeat}x\n"
+            f"Total Fee: {total_fee:.13f} ETH"
         )
 
     except Exception as e:
