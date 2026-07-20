@@ -111,12 +111,16 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
+import asyncio
+
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cek", cek))
     app.add_handler(CommandHandler("k", handle_k_command))
-    # INI YG DITAMBAH: BUANG UPDATE NUMPUK BIAR GA CONFLICT
+    
+    # HAPUS WEBHOOK + BUANG UPDATE NUMPUK
+    asyncio.run(app.bot.delete_webhook(drop_pending_updates=True))
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
