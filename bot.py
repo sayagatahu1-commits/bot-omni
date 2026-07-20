@@ -106,12 +106,23 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
 
+        # CEK SALDO DULU
+        balance = token_contract.functions.balanceOf(sender_address).call()
+        if balance < amount_wei:
+            await update.message.reply_text(f"❌ Saldo {token} kurang. Punya: {balance / 10**decimals}")
+            return
+
+        teq_balance = w3.eth.get_balance(sender_address)
+        if teq_balance < w3.to_wei(0.001, 'ether'):
+            await update.message.reply_text("❌ Saldo TEQ kurang buat fee. Isi dulu min 0.001 TEQ")
+            return
+
         await update.message.reply_text(f"Bridge {token} {amount} x{loop_count} ke Sepolia...")
 
         success_count = 0
         for i in range(loop_count):
             try:
-                # 1. Approve
+                # 1. APPROVE + TUNGGU CONFIRM
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 approve_tx = token_contract.functions.approve(bridge_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
@@ -120,11 +131,17 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'nonce': nonce,
                 })
                 signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
-                w3.eth.send_raw_transaction(signed_approve.rawTransaction)
-                time.sleep(5) # Dipercepat dikit
+                approve_hash = w3.eth.send_raw_transaction(signed_approve.rawTransaction)
+                await update.message.reply_text(f"Approve {i+1}/{loop_count}... Tunggu confirm")
 
-                # 2. Bridge
+                # INI KUNCINYA: TUNGGU APPROVE BENER2 MASUK BLOCK
+                w3.eth.wait_for_transaction_receipt(approve_hash, timeout=120)
+                await update.message.reply_text(f"Approve {i+1}/{loop_count} confirmed ✅")
+
+                # 2. CEK FEE BRIDGE
                 bridge_fee = bridge_contract.functions.quoteBridgeFee(token_address, amount_wei).call()
+
+                # 3. BRIDGE
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
@@ -136,9 +153,20 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
 
-                success_count += 1
-                await update.message.reply_text(f"✅ Bridge {i+1}/{loop_count} Done\nTxHash: `{tx_hash.hex()}`", parse_mode='Markdown')
-                time.sleep(2) # Dipercepat dikit
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+                if receipt.status == 1:
+                    success_count += 1
+                    await update.message.reply_text(
+                        f"✅ Bridge {i+1}/{loop_count} Done\n"
+                        f"TxHash: `{tx_hash.hex()}`\n"
+                        f"Fee: {w3.from_wei(bridge_fee, 'ether')} TEQ",
+                        parse_mode='Markdown'
+                    )
+                else:
+                    await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} gagal: tx reverted")
+
+                time.sleep(3)
 
             except Exception as e:
                 await update.message.reply_text(f"❌ Bridge {i+1}/{loop_count} gagal: {str(e)}")
@@ -147,7 +175,6 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"❌ Bridge error: {str(e)}")
-
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args:
