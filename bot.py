@@ -73,7 +73,9 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         # FIX: web3 v6 pake raw_transaction
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        # Ganti line 76 jadi 3 baris ini
+raw_tx = getattr(signed_tx, 'raw_transaction', None) or getattr(signed_tx, 'rawTransaction')
+tx_hash = w3.eth.send_raw_transaction(raw_tx)
 
         await update.message.reply_text(f"✅ Sent {amount} {token}\nTx: 0x{tx_hash.hex()}\nhttps://testnet.omniscan.network/tx/0x{tx_hash.hex()}")
 
