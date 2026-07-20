@@ -4,7 +4,10 @@ from web3 import Web3
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Application  # <<< TAMBAHIN Application
 
-# <<< TEMPEL DI SINI >>>
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+RPC_URL = os.getenv("RPC_URL")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
 BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
 BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"uint256","name":"_destinationChainId","type":"uint256"}],"name":"bridgeToken","outputs":[],"stateMutability":"payable","type":"function"}]
