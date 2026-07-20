@@ -107,16 +107,21 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
-@bot.message_handler(commands=['testkey'])
+@application.command_handler # KALO PAKE PTB V20
 async def handle_testkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from eth_account import Account
     try:
         derived_addr = Account.from_key(PRIVATE_KEY).address
-        await update.message.reply_text(f"Alamat dari PRIVATE_KEY:\n{derived_addr}\n\nAlamat di WALLET_ADDRESS:\n{WALLET_ADDRESS}")
-        if derived_addr.lower() != WALLET_ADDRESS.lower():
-            await update.message.reply_text("SALAH TOTAL. Private key lu bukan buat alamat ini. Makanya invalid sender.")
+        await update.message.reply_text(f"Alamat dari PRIVATE_KEY:\n`{derived_addr}`\n\nAlamat di WALLET_ADDRESS:\n`{WALLET_ADDRESS}`", parse_mode='Markdown')
+        if derived_addr.lower() == WALLET_ADDRESS.lower():
+            await update.message.reply_text("✅ Private key COCOK sama alamat. Masalah bukan di key.")
         else:
-            await update.message.reply_text("Private key bener. Lanjut cek 2.")
+            await update.message.reply_text("❌ SALAH TOTAL. Private key lu bukan buat alamat ini. Ini penyebab 'invalid sender'.")
+    except Exception as e:
+        await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
+
+# TERUS PASTIIN ADA BARIS INI DI BAGIAN application.add_handler LAINNYA:
+application.add_handler(CommandHandler("testkey", handle_testkey))
     except Exception as e:
         await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
         to_address = Web3.to_checksum_address(context.args[1])
