@@ -16,8 +16,7 @@ TOKENS = {
     "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
     "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
     "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
-    "TTEQ": "0x5ac3b6fbe9d5f9e4d6e7f8a9b0c1d2e3f4a5b6c7", # Ganti kalo salah alamat
-    "ETH": "NATIVE" # ETH = NATIVE COIN BUAT GAS
+    "ETH": "NATIVE"
 }
 
 erc20_abi = [
@@ -30,12 +29,13 @@ logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
+    actual_chain_id = w3.eth.chain_id
     await update.message.reply_text(
-        f"Bot TeQoin Testnet Ready!\n"
         f"Wallet: {sender_address}\n"
         f"Saldo ETH: {eth_balance}\n"
-        f"Chain ID: {CHAIN_ID}\n\n"
-        "Format:\n/send USDT 0xAlamat 1.5\n/balance ETH"
+        f"Chain ID ENV: {CHAIN_ID}\n"
+        f"Chain ID RPC: {actual_chain_id}\n\n"
+        "Format:\n/send DAI 0xAlamat 0.01"
     )
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -52,29 +52,39 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Token ga ada. Pilih: {', '.join(TOKENS.keys())}")
             return
 
-        # Pake gas price dari RPC, TeQoin gas-nya 0
-        gas_price = w3.eth.gas_price
+        nonce = w3.eth.get_transaction_count(sender_address)
+
+        # TeQoin pake EIP-1559. Gas fee hampir 0
+        base_fee = w3.eth.gas_price
+        max_priority_fee = 0
+        max_fee_per_gas = base_fee
 
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
-                'nonce': w3.eth.get_transaction_count(sender_address),
+                'nonce': nonce,
                 'to': to_address,
                 'value': w3.to_wei(amount, 'ether'),
                 'gas': 21000,
-                'gasPrice': gas_price,
-                'chainId': CHAIN_ID
+                'maxFeePerGas': max_fee_per_gas,
+                'maxPriorityFeePerGas': max_priority_fee,
+                'chainId': CHAIN_ID,
+                'type': 2
             }
         else:
             contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
             decimals = contract.functions.decimals().call()
             amount_wei = int(amount * 10**decimals)
+
             tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
                 'from': sender_address,
-                'nonce': w3.eth.get_transaction_count(sender_address),
-                'gas': 100000,
-                'gasPrice': gas_price,
-                'chainId': CHAIN_ID
+                'nonce': nonce,
+                'maxFeePerGas': max_fee_per_gas,
+                'maxPriorityFeePerGas': max_priority_fee,
+                'chainId': CHAIN_ID,
+                'type': 2
             })
+            # Estimate gas biar ga kegedean
+            tx['gas'] = w3.eth.estimate_gas(tx)
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
@@ -88,7 +98,6 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(context.args)!= 1:
             await update.message.reply_text("Format: /balance TOKEN")
             return
-
         token_symbol = context.args[0].upper()
         if TOKENS[token_symbol] == "NATIVE":
             balance = w3.eth.get_balance(sender_address)
@@ -98,7 +107,6 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             decimals = contract.functions.decimals().call()
             balance = contract.functions.balanceOf(sender_address).call()
             await update.message.reply_text(f"Saldo {token_symbol}: {balance / 10**decimals}")
-
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
