@@ -46,81 +46,63 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        # Format: /send TOKEN 0xAlamat 0.01 5
-        if len(context.args) < 3 or len(context.args) > 4:
-            await update.message.reply_text("Format: /send TOKEN 0xAlamat 1.5 [jumlah]\nContoh: /send DAI 0x123.. 0.01 5")
-            return
+    if not context.args or len(context.args) < 3:
+        await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
+        return
 
-        token_symbol = context.args[0].upper()
-        to_address = Web3.to_checksum_address(context.args[1])
-        amount = float(context.args[2])
-        repeat = int(context.args[3]) if len(context.args) == 4 else 1
+    token = context.args[0].upper()
+    to_address = context.args[1]
+    amount = float(context.args[2])
+    loop_count = int(context.args[3]) if len(context.args) > 3 else 1
 
-        if repeat > 20:
-            await update.message.reply_text("Maks 20x sekali kirim biar ga spam woy")
-            return
+    if token not in TOKENS:
+        await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
+        return
 
-        if token_symbol not in TOKENS:
-            await update.message.reply_text(f"Token ga ada. Pilih: {', '.join(TOKENS.keys())}")
-            return
+    if token == "ETH":
+        # handle ETH transfer
+        return
 
-        await update.message.reply_text(f"Proses kirim {token_symbol} {amount} sebanyak {repeat}x...")
+    token_address = TOKENS[token]
+    # <<< FIX DI SINI: ERC20_ABI huruf besar + checksum >>>
+    contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
+    decimals = contract.functions.decimals().call()
+    amount_wei = int(amount * 10**decimals)
 
-        success_count = 0
-        total_fee = 0
+    await update.message.reply_text(f"Proses kirim {token} {amount} sebanyak {loop_count}x...")
 
-        for i in range(repeat):
-            try:
-                nonce = w3.eth.get_transaction_count(sender_address)
-                base_fee = w3.eth.get_block('latest')['baseFeePerGas']
-                max_priority_fee = 0
-                max_fee_per_gas = base_fee
+    success_count = 0
+    total_fee = 0
+    for i in range(loop_count):
+        try:
+            nonce = w3.eth.get_transaction_count(sender_address)
+            tx = contract.functions.transfer(
+                Web3.to_checksum_address(to_address), # <<< CHECKSUM JUGA
+                amount_wei
+            ).build_transaction({
+                'chainId': CHAIN_ID,
+                'gas': 100000,
+                'gasPrice': w3.eth.gas_price,
+                'nonce': nonce,
+            })
 
-                if TOKENS[token_symbol] == "NATIVE":
-                    tx = {
-                        'nonce': nonce,
-                        'to': to_address,
-                        'value': w3.to_wei(amount, 'ether'),
-                        'maxFeePerGas': max_fee_per_gas,
-                        'maxPriorityFeePerGas': max_priority_fee,
-                        'chainId': CHAIN_ID,
-                        'type': 2,
-                        'gas': 21000
-                    }
-                else:
-                    contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
-                    decimals = contract.functions.decimals().call()
-                    amount_wei = int(amount * 10**decimals)
+            signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+            fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+            total_fee += float(fee)
+            success_count += 1
+            await update.message.reply_text(f"Tx ke-{i+1} done: {tx_hash.hex()}")
 
-                    tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
-                        'from': sender_address,
-                        'nonce': nonce,
-                        'maxFeePerGas': max_fee_per_gas,
-                        'maxPriorityFeePerGas': max_priority_fee,
-                        'chainId': CHAIN_ID,
-                        'type': 2,
-                        'gas': 65000
-                    })
+        except Exception as e:
+            await update.message.reply_text(f"Tx ke-{i+1} gagal: {str(e)}")
+            break
 
-                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
-
-                fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
-                total_fee += float(fee)
-                success_count += 1
-
-            except Exception as e:
-                await update.message.reply_text(f"Tx ke-{i+1} gagal: {e}")
-                break
-
-        await update.message.reply_text(
-            f"✅ Selesai!\n"
-            f"Berhasil: {success_count}/{repeat}x\n"
-            f"Total Fee: {total_fee:.13f} ETH"
-        )
-
+    await update.message.reply_text(
+        f"✅ Selesai!\n"
+        f"Berhasil: {success_count}/{loop_count}x\n"
+        f"Total Fee: {total_fee:.13f} ETH"
+    )
     except Exception as e:
         await update.message.reply_text(f"Error woy: {e}")
 
