@@ -59,7 +59,7 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not web3.is_connected():
-            await update.message.reply_text("RPC MATI. Ganti RPC_URL di Railway.")
+            await update.message.reply_text("RPC MATI")
             return
 
         if len(context.args) < 3:
@@ -74,34 +74,41 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
 
-        contract = web3.eth.contract(address=CONTRACTS[token], abi=ERC20_ABI)
+        contract = web3.eth.contract(address=Web3.to_checksum_address(CONTRACTS[token]), abi=ERC20_ABI)
         decimals = contract.functions.decimals().call()
         amount = int(0.01 * (10 ** decimals))
 
-        await update.message.reply_text(f"Mulai spam {jumlah}x 0.01 {token.upper()} ke {to_address[:10]}...")
+        # GAS SUPER MURAH KAYA DI WALLET LU
+        gas_limit = 40000
+        gas_price = web3.to_wei('0.0001', 'gwei') # 0.0001 GWEI = MIRIP FEE DI SS LU
+        biaya_1_tx = gas_limit * gas_price
+
+        eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
+        if eth_balance < biaya_1_tx:
+            await update.message.reply_text(f"GAGAL. Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} masih kurang buat 1 tx. Butuh {web3.from_wei(biaya_1_tx, 'ether'):.12f} ETH.")
+            return
+
+        await update.message.reply_text(f"Mulai spam {jumlah}x 0.01 {token.upper()} ke {to_address[:10]}...\nGas: {web3.from_wei(gas_price, 'gwei')} gwei")
 
         sukses = 0
         for i in range(jumlah):
             try:
-                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'latest')
-                base_fee = web3.eth.get_block('latest')['baseFeePerGas']
-                max_priority_fee = web3.to_wei('1', 'gwei')
-                max_fee = base_fee + max_priority_fee
+                nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
 
+                # PAKE LEGACY TX + GAS MURAH
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
-                    'gas': 60000,
-                    'maxFeePerGas': max_fee,
-                    'maxPriorityFeePerGas': max_priority_fee,
-                    'chainId': CHAIN_ID,
-                    'type': 2
+                    'gas': gas_limit,
+                    'gasPrice': gas_price,
+                    'chainId': CHAIN_ID
                 })
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+                web3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
                 sukses += 1
-                await asyncio.sleep(3)
+                await update.message.reply_text(f"TX {i+1}/{jumlah} sukses: {tx_hash.hex()[:10]}...")
+                await asyncio.sleep(5)
             except Exception as e:
                 await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:200]}")
                 break
