@@ -176,7 +176,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 success_count += 1
             
         except Exception as e:  # ← indent 8 spasi, sejajar sama 'try' di dalem for
-            await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
+        await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
 
     await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")  # ← indent 4 spasi
 
