@@ -199,7 +199,7 @@ async def post_init(application):  # <<< HAPUS : Application
     ])
 
 from telegram.ext import ApplicationBuilder
-application = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
+application = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init).build()
 
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("send", send_token))
