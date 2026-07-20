@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 TOKEN = os.getenv("TOKEN")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID", "28516"))
-RPC_URL = os.getenv("RPC_URL", "https://rpc.teqoin.io/testnet") # Ambil dari Railway
+RPC_URL = os.getenv("RPC_URL", "https://rpc.teqoin.io/testnet")
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
@@ -16,7 +16,8 @@ TOKENS = {
     "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
     "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
     "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
-    "TTEQ": "NATIVE"
+    "TTEQ": "0x5ac3b6fbe9d5f9e4d6e7f8a9b0c1d2e3f4a5b6c7", # Ganti kalo salah alamat
+    "ETH": "NATIVE" # ETH = NATIVE COIN BUAT GAS
 }
 
 erc20_abi = [
@@ -28,12 +29,13 @@ erc20_abi = [
 logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
     await update.message.reply_text(
         f"Bot TeQoin Testnet Ready!\n"
         f"Wallet: {sender_address}\n"
-        f"RPC: {RPC_URL}\n"
+        f"Saldo ETH: {eth_balance}\n"
         f"Chain ID: {CHAIN_ID}\n\n"
-        "Format:\n/send USDT 0xAlamat 1.5\n/balance TTEQ"
+        "Format:\n/send USDT 0xAlamat 1.5\n/balance ETH"
     )
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -50,13 +52,16 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Token ga ada. Pilih: {', '.join(TOKENS.keys())}")
             return
 
+        # Pake gas price dari RPC, TeQoin gas-nya 0
+        gas_price = w3.eth.gas_price
+
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
                 'nonce': w3.eth.get_transaction_count(sender_address),
                 'to': to_address,
                 'value': w3.to_wei(amount, 'ether'),
                 'gas': 21000,
-                'gasPrice': w3.to_wei('5', 'gwei'),
+                'gasPrice': gas_price,
                 'chainId': CHAIN_ID
             }
         else:
@@ -67,7 +72,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'from': sender_address,
                 'nonce': w3.eth.get_transaction_count(sender_address),
                 'gas': 100000,
-                'gasPrice': w3.to_wei('5', 'gwei'),
+                'gasPrice': gas_price,
                 'chainId': CHAIN_ID
             })
 
@@ -87,7 +92,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token_symbol = context.args[0].upper()
         if TOKENS[token_symbol] == "NATIVE":
             balance = w3.eth.get_balance(sender_address)
-            await update.message.reply_text(f"Saldo TTEQ: {w3.from_wei(balance, 'ether')}")
+            await update.message.reply_text(f"Saldo ETH: {w3.from_wei(balance, 'ether')}")
         else:
             contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
             decimals = contract.functions.decimals().call()
