@@ -56,21 +56,18 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"RPC MATI: {str(e)}")
 
-async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@bot.message_handler(commands=['testkey'])
+async def handle_testkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from eth_account import Account
     try:
-        if not web3.is_connected():
-            await update.message.reply_text("RPC MATI")
-            return
-
-        if len(context.args) < 3:
-            await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH")
-            return
-
-        token = context.args[0].lower()
-        if token not in CONTRACTS:
-            await update.message.reply_text(f"Token {token} ga ada. Pilih: dai, usdt, usdc")
-            return
-
+        derived_addr = Account.from_key(PRIVATE_KEY).address
+        await update.message.reply_text(f"Alamat dari PRIVATE_KEY:\n{derived_addr}\n\nAlamat di WALLET_ADDRESS:\n{WALLET_ADDRESS}")
+        if derived_addr.lower() != WALLET_ADDRESS.lower():
+            await update.message.reply_text("SALAH TOTAL. Private key lu bukan buat alamat ini. Makanya invalid sender.")
+        else:
+            await update.message.reply_text("Private key bener. Lanjut cek 2.")
+    except Exception as e:
+        await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
 
@@ -94,10 +91,10 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'nonce': nonce,
                 'gas': 21000,
                 'gasPrice': gas_price,
-                'chainId': CHAIN_ID
+                CHAIN_ID = web3.eth.chain_id # Biar otomatis ngikutin RPC
             }
             signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
-            tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction) # pake underscore
             web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             await update.message.reply_text("Wallet aktif. Mulai spam token...")
             await asyncio.sleep(3)
