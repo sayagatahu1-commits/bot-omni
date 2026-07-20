@@ -148,7 +148,9 @@ async def post_init(application: Application):
         ("balance", "Cek saldo token")
     ])
 
-151  application = Application.builder().token(TOKEN).post_init(post_init).build()
+from telegram.ext import ApplicationBuilder  # <<< TAMBAHIN IMPORT INI DI ATAS
+
+application = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
 152  application.add_handler(CommandHandler("start", start))
 153  application.add_handler(CommandHandler("send", send_token))
 154  application.add_handler(CommandHandler("bridge", bridge_token))  # <<< INI WAJIB DITAMBAH
