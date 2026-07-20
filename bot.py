@@ -142,25 +142,49 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i in range(loop_count): # <<< line 148
         try: # <<< HARUS MENJOROK 4 SPASI / 1 TAB DARI 'for'
             nonce = w3.eth.get_transaction_count(sender_address)
-            tx = contract.functions.transfer(
-                Web3.to_checksum_address("0x0000000000000001"),
-                amount_wei
-            ).build_transaction({
-                'chainId': CHAIN_ID,
-                'gas': 100000,
-                'gasPrice': w3.eth.gas_price,
-                'nonce': nonce,
-            })
-            # dst...
-        except Exception as e:
-            await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
-            break
+            bridge_contract = w3.eth.contract(address=Web3.to_checksum_address(BRIDGE_CONTRACT), abi=BRIDGE_ABI)
 
-    await update.message.reply_text(
-        f"✅ Bridge Selesai!\n"
-        f"Berhasil: {success_count}/{loop_count}x\n"
-        f"Estimasi poin: {success_count * 1000} 🔥"
-            )
+for i in range(loop_count):
+    try:
+        nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+        
+        # 1. Approve dulu token ke bridge
+        approve_tx = token_contract.functions.approve(
+            BRIDGE_CONTRACT, 
+            amount_wei
+        ).build_transaction({
+            'chainId': CHAIN_ID,
+            'gas': 100000,
+            'gasPrice': w3.eth.gas_price,
+            'nonce': nonce,
+        })
+        signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
+        w3.eth.send_raw_transaction(signed_approve.rawTransaction)
+        
+        # Tunggu approve ke-mine dulu
+        time.sleep(5)
+        
+        # 2. Baru call bridge
+        nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+        dest_domain = 1 # Sepolia. Ganti 40161 kalo LZ v2
+        
+        tx = bridge_contract.functions.send( # atau depositForBurn, tergantung ABI
+            dest_domain,      # uint32, BUKAN address
+            amount_wei,       # uint256
+            sender_address    # bytes32 / address
+        ).build_transaction({
+            'chainId': CHAIN_ID,
+            'gas': 500000,
+            'gasPrice': w3.eth.gas_price,
+            'nonce': nonce,
+        })
+        
+        signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        success_count += 1
+        
+    except Exception as e:
+        await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
 async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
         ("start", "Cek wallet & menu"),
