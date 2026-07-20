@@ -139,7 +139,58 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Saldo {token_symbol}: {balance / 10**decimals}")
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
+async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args or len(context.args) < 2:
+        await update.message.reply_text("Format: /bridge TOKEN 0.01 [jumlah]\nContoh: /bridge USDT 0.01 10")
+        return
 
+    token = context.args[0].upper()
+    amount = float(context.args[1])
+    loop_count = int(context.args[2]) if len(context.args) > 2 else 1
+
+    if token not in TOKENS:
+        await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
+        return
+
+    if token == "ETH":
+        await update.message.reply_text("ETH belum support bridge, pake USDT/USDC/DAI dulu")
+        return
+
+    token_address = TOKENS[token]
+    contract = w3.eth.contract(address=token_address, abi=ERC20_ABI)
+    decimals = contract.functions.decimals().call()
+    amount_wei = int(amount * 10**decimals)
+
+    await update.message.reply_text(f"Proses bridge {token} {amount} ke Sepolia {loop_count}x...\n1x bridge = 1000 poin")
+
+    success_count = 0
+    for i in range(loop_count):
+        try:
+            nonce = w3.eth.get_transaction_count(sender_address)
+            tx = contract.functions.transfer(
+                "0x0000000000000001", # Dummy bridge address, ganti sesuai protokol lu
+                amount_wei
+            ).build_transaction({
+                'chainId': CHAIN_ID,
+                'gas': 100000,
+                'gasPrice': w3.eth.gas_price,
+                'nonce': nonce,
+            })
+
+            signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            success_count += 1
+            await update.message.reply_text(f"Bridge {i+1}/{loop_count} done: {tx_hash.hex()}")
+
+        except Exception as e:
+            await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
+            break
+
+    await update.message.reply_text(
+        f"✅ Bridge Selesai!\n"
+        f"Berhasil: {success_count}/{loop_count}x\n"
+        f"Estimasi poin: {success_count * 1000} 🔥"
+            )
 async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
         ("start", "Cek wallet & menu"),
