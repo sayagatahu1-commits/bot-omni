@@ -158,7 +158,7 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     token_address = TOKENS[token]
-    contract = w3.eth.contract(address=token_address, abi=ERC20_ABI)
+    contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
     decimals = contract.functions.decimals().call()
     amount_wei = int(amount * 10**decimals)
 
@@ -169,7 +169,7 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             nonce = w3.eth.get_transaction_count(sender_address)
             tx = contract.functions.transfer(
-                "0x0000000000000001", # Dummy bridge address, ganti sesuai protokol lu
+                Web3.to_checksum_address("0x0000000000000001"), # Dummy bridge
                 amount_wei
             ).build_transaction({
                 'chainId': CHAIN_ID,
