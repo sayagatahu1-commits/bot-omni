@@ -114,67 +114,73 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Saldo {token_symbol}: {balance / 10**decimals}")
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
-async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text("Format: /bridge TOKEN 0.01 [jumlah]\nContoh: /bridge USDT 0.01 10")
-        return
+async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        if not context.args or len(context.args) < 2:
+            await update.message.reply_text("Format: /bridge TOKEN 0.01 [jumlah]")
+            return
 
-    token = context.args[0].upper()
-    amount = float(context.args[1])
-    loop_count = int(context.args[2]) if len(context.args) > 2 else 1
+        token = context.args[0].upper()
+        amount = float(context.args[1])
+        loop_count = int(context.args[2]) if len(context.args) > 2 else 1
 
-    if token not in TOKENS:
-        await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
-        return
+        if token not in TOKENS:
+            await update.message.reply_text(f"Token {token} ga ada. Pilih: {', '.join(TOKENS.keys())}")
+            return
 
-    if token == "ETH":
-        await update.message.reply_text("ETH belum support bridge, pake USDT/USDC/DAI dulu")
-        return
+        if token == "ETH":
+            await update.message.reply_text("ETH belum support bridge")
+            return
 
-    token_address = TOKENS[token]
-    contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
-    decimals = contract.functions.decimals().call()
-    amount_wei = int(amount * 10**decimals)
+        token_address = TOKENS[token]
+        token_contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
+        bridge_contract = w3.eth.contract(address=Web3.to_checksum_address(BRIDGE_CONTRACT), abi=BRIDGE_ABI)
+        decimals = token_contract.functions.decimals().call()
+        amount_wei = int(amount * 10**decimals)
 
-    await update.message.reply_text(f"Proses bridge {token} {amount} ke Sepolia {loop_count}x...\n1x bridge = 1000 poin")
+        await update.message.reply_text(f"Proses bridge {token} {amount} x{loop_count}...")
 
-    success_count = 0
-for i in range(loop_count):
-    try:  # INDENT 4 SPASI DARI 'for'
-        nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+        success_count = 0
+        for i in range(loop_count):
+            try:
+                # Approve
+                nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+                approve_tx = token_contract.functions.approve(
+                    BRIDGE_CONTRACT,
+                    amount_wei
+                ).build_transaction({
+                    'chainId': CHAIN_ID,
+                    'gas': 100000,
+                    'gasPrice': w3.eth.gas_price,
+                    'nonce': nonce,
+                })
+                signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
+                w3.eth.send_raw_transaction(signed_approve.rawTransaction)
+                time.sleep(5)
+
+                # Bridge
+                nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+                tx = bridge_contract.functions.send( # Ganti 'send' sesuai ABI lu
+                    1, # dest_domain Sepolia
+                    amount_wei,
+                    sender_address
+                ).build_transaction({
+                    'chainId': CHAIN_ID,
+                    'gas': 500000,
+                    'gasPrice': w3.eth.gas_price,
+                    'nonce': nonce,
+                })
+                signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+                tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+                success_count += 1
+                
+            except Exception as e:
+                await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
         
-        # Approve
-        approve_tx = token_contract.functions.approve(
-            BRIDGE_CONTRACT,
-            amount_wei
-        ).build_transaction({
-            'chainId': CHAIN_ID,
-            'gas': 100000,
-            'gasPrice': w3.eth.gas_price,
-            'nonce': nonce,
-        })
-        signed_approve = w3.eth.account.sign_transaction(approve_tx, PRIVATE_KEY)
-        w3.eth.send_raw_transaction(signed_approve.rawTransaction)
-        time.sleep(5)
-        
-        # Bridge
-        nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-        tx = bridge_contract.functions.send(
-            1,  # dest_domain
-            amount_wei,
-            sender_address
-        ).build_transaction({
-            'chainId': CHAIN_ID,
-            'gas': 500000,
-            'gasPrice': w3.eth.gas_price,
-            'nonce': nonce,
-        })
-        signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        success_count += 1
-        
-    except Exception as e:  # INDENT SEJAJAR 'try'
-        await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
+        await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Bridge gagal: {str(e)}")
         logging.error(f"Bridge error: {e}")
 async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
