@@ -82,7 +82,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logging.error(f"Send error: {e}")
     
         
-    ) # <<< tutup kurung di sini doang
+    
 
     await update.message.reply_text( # <<< await + indent sejajar
         f"Wallet:\n{sender_address}\n"
