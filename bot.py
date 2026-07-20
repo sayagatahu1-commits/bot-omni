@@ -5,7 +5,7 @@ from web3 import Web3
 import asyncio
 
 BOT_TOKEN = os.environ['BOT_TOKEN']
-PRIVATE_KEY = os.environ['PRIVATE_KEY'].strip() #.strip() biar ga ada spasi
+PRIVATE_KEY = os.environ['PRIVATE_KEY'].strip()
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
 RPC_URL = os.environ.get('RPC_URL', 'https://rpc.teqoin.io/testnet')
 
@@ -39,9 +39,9 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         pk_addr = web3.eth.account.from_key(PRIVATE_KEY).address
         eth = web3.from_wei(web3.eth.get_balance(WALLET_ADDRESS), 'ether')
-        gp = web3.from_wei(web3.eth.gas_price, 'gwei')
+        block = web3.eth.block_number
         status = "✅ Private Key COCOK" if pk_addr.lower() == WALLET_ADDRESS.lower() else "❌ Private Key BEDA"
-        msg = f"RPC: {RPC_URL}\nChainID: {CHAIN_ID}\nGasPrice: {gp:.2f} gwei\nWALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
+        msg = f"RPC: {RPC_URL}\nChainID: {CHAIN_ID}\nBlock: {block}\nWALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
         await update.message.reply_text(msg)
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
@@ -71,16 +71,18 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'latest')
 
-                # FIX UTAMA: SET GAS MURAH MANUAL 1 GWEI
-                gas_price = web3.to_wei('1', 'gwei') # 1 gwei doang
+                # FIX UTAMA: PAKE EIP-1559 + GAS 1 GWEI
+                max_priority_fee = web3.to_wei('1', 'gwei')
+                max_fee = web3.to_wei('1', 'gwei')
 
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
-                    'gas': 50000, # Turunin lagi ke 50k
-                    'gasPrice': gas_price,
+                    'gas': 50000,
+                    'maxFeePerGas': max_fee,
+                    'maxPriorityFeePerGas': max_priority_fee,
                     'chainId': CHAIN_ID,
-                    'value': 0
+                    'type': 2 # EIP-1559
                 })
 
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
