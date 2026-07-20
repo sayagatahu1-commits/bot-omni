@@ -33,12 +33,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"Wallet: {sender_address}\n"
         f"Saldo ETH: {eth_balance}\n"
-        f"Chain ID ENV: {CHAIN_ID}\n"
         f"Chain ID RPC: {actual_chain_id}\n\n"
-        "Format:\n/send DAI 0xAlamat 0.01"
+        "Format:\n/send DAI 0xAlamat 0.01\n/balance ETH"
     )
 
-async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args)!= 3:
@@ -54,10 +52,8 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         nonce = w3.eth.get_transaction_count(sender_address)
-
-        # TeQoin gas price = 0. Pake 1 wei biar ga ditolak
-        max_priority_fee = 1 # 1 wei
-        max_fee_per_gas = 1 # 1 wei
+        max_priority_fee = 1
+        max_fee_per_gas = 1
 
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
@@ -69,7 +65,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': CHAIN_ID,
                 'type': 2
             }
-            tx['gas'] = w3.eth.estimate_gas(tx) # Auto estimate gas
+            tx['gas'] = w3.eth.estimate_gas(tx)
         else:
             contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
             decimals = contract.functions.decimals().call()
@@ -83,13 +79,10 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': CHAIN_ID,
                 'type': 2
             })
-            # Auto estimate gas yg dipake beneran
             tx['gas'] = w3.eth.estimate_gas(tx)
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-
-        # Hitung fee beneran yg kepake
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
         actual_fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
 
