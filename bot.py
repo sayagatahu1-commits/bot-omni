@@ -22,13 +22,6 @@ BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"addre
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 
-TOKENS = {
-    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
-    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
-    "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
-    "ETH": "NATIVE"
-}
-
 erc20_abi = [
     {"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
     {"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},
@@ -39,12 +32,16 @@ logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
-    actual_chain_id = w3.eth.chain_id
     await update.message.reply_text(
-        f"Wallet: {sender_address}\n"
+        f"Wallet:\n{sender_address}\n"
         f"Saldo ETH: {eth_balance}\n"
-        f"Chain ID RPC: {actual_chain_id}\n\n"
-        "Format:\n/send DAI 0xAlamat 0.01\n/balance ETH"
+        f"Chain ID RPC: {CHAIN_ID}\n\n"
+        f"Format:\n"
+        f"/send TOKEN 0xAlamat 0.01 [jumlah]\n"
+        f"/bridge TOKEN 0.01 [jumlah]\n"
+        f"/balance TOKEN\n\n"
+        f"Contoh farming poin:\n"
+        f"/bridge USDT 0.01 10"
     )
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
