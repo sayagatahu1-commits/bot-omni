@@ -41,31 +41,34 @@ f"Contoh farming poin:\n"
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args or len(context.args) < 3:
-       await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
-       return
-
-     token = context.args[0].upper()
- token_address = TOKENS.get(token) # <<< TAMBAHIN INI
- if not token_address:
- await update.message.reply_text(f"Token {token} tidak terdaftar di TOKENS")
- return
- contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
-
-    try:
-        decimals = contract.functions.decimals().call()
-        balance = contract.functions.balanceOf(sender_address).call()
-        amount_wei = int(amount * 10**decimals)
-
-        if balance < amount_wei:
-            await update.message.reply_text(f"Balance kurang. Punya: {balance / 10**decimals} {token}")
-            return
-
-    except Exception as e:
-        await update.message.reply_text(f"Gagal cek token: {str(e)}")
+        await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
         return
 
-    await update.message.reply_text(f"Proses kirim {token} {amount} sebanyak {loop_count}x...")
+    token = context.args[0].upper()
+    token_address = TOKENS.get(token)
+    if not token_address:
+        await update.message.reply_text(f"Token {token} ga ada di list. Pilihan: {', '.join(TOKENS.keys())}")
+        return
 
+    to_address = Web3.to_checksum_address(context.args[1])
+    amount = float(context.args[2])
+
+    contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
+    decimals = contract.functions.decimals().call()
+    amount_wei = int(amount * 10**decimals)
+
+    nonce = w3.eth.get_transaction_count(sender_address)
+    tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
+        'chainId': CHAIN_ID,
+        'gas': 100000,
+        'gasPrice': w3.eth.gas_price,
+        'nonce': nonce,
+    })
+
+    signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+
+    await update.message.reply_text(f"Sent {amount} {token}\nTx: {tx_hash.hex()}")
     success_count = 0
     total_fee = 0
     for i in range(loop_count):
