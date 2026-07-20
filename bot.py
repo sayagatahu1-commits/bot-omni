@@ -114,9 +114,9 @@ async def handle_testkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
         derived_addr = Account.from_key(PRIVATE_KEY).address
         await update.message.reply_text(f"Alamat dari PRIVATE_KEY:\n`{derived_addr}`\n\nAlamat di WALLET_ADDRESS:\n`{WALLET_ADDRESS}`", parse_mode='Markdown')
         if derived_addr.lower() == WALLET_ADDRESS.lower():
-            await update.message.reply_text("✅ Private key COCOK sama alamat. Masalah bukan di key.")
+            await update.message.reply_text("✅ Private key COCOK sama alamat.")
         else:
-            await update.message.reply_text("❌ SALAH TOTAL. Private key lu bukan buat alamat ini. Ini penyebab 'invalid sender'.")
+            await update.message.reply_text("❌ SALAH. Private key bukan buat alamat ini. Ini penyebab 'invalid sender'.")
     except Exception as e:
         await update.message.reply_text(f"Private key lu ga valid: {str(e)}")
 
@@ -125,42 +125,30 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not web3.is_connected():
             await update.message.reply_text("RPC MATI")
             return
-
         if len(context.args) < 3:
             await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH")
             return
-
         token = context.args[0].lower()
         if token not in CONTRACTS:
             await update.message.reply_text(f"Token {token} ga ada. Pilih: dai, usdt, usdc")
             return
-
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
-
         gas_limit = 40000
         gas_price = web3.to_wei('0.0001', 'gwei')
         chain_id = web3.eth.chain_id
-
         eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
         biaya_aktivasi = 21000 * gas_price + web3.to_wei('0.0001', 'ether')
-
         if eth_balance < biaya_aktivasi:
-            await update.message.reply_text(f"Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} kurang. Butuh {web3.from_wei(biaya_aktivasi, 'ether'):.12f} buat aktivasi.")
+            await update.message.reply_text(f"Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} kurang.")
             return
-
-        await update.message.reply_text(f"Aktivasi wallet: kirim 0.0001 ETH ke diri sendiri...")
-
+        await update.message.reply_text("Aktivasi wallet: kirim 0.0001 ETH ke diri sendiri...")
         try:
             nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
             tx_aktivasi = {
-                'from': WALLET_ADDRESS,
-                'to': WALLET_ADDRESS,
-                'value': web3.to_wei('0.0001', 'ether'),
-                'nonce': nonce,
-                'gas': 21000,
-                'gasPrice': gas_price,
-                'chainId': chain_id
+                'from': WALLET_ADDRESS, 'to': WALLET_ADDRESS,
+                'value': web3.to_wei('0.0001', 'ether'), 'nonce': nonce,
+                'gas': 21000, 'gasPrice': gas_price, 'chainId': chain_id
             }
             signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
             tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
@@ -170,21 +158,16 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await update.message.reply_text(f"Gagal aktivasi: {str(e)[:200]}")
             return
-
         contract = web3.eth.contract(address=Web3.to_checksum_address(CONTRACTS[token]), abi=ERC20_ABI)
         decimals = contract.functions.decimals().call()
         amount = int(0.01 * (10 ** decimals))
-
         sukses = 0
         for i in range(jumlah):
             try:
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
-                    'from': WALLET_ADDRESS,
-                    'nonce': nonce,
-                    'gas': gas_limit,
-                    'gasPrice': gas_price,
-                    'chainId': chain_id
+                    'from': WALLET_ADDRESS, 'nonce': nonce, 'gas': gas_limit,
+                    'gasPrice': gas_price, 'chainId': chain_id
                 })
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
@@ -195,9 +178,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:200]}")
                 break
-
         await update.message.reply_text(f"SELESAI. Berhasil {sukses}/{jumlah}x kirim {token.upper()}")
-
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
@@ -206,11 +187,15 @@ async def post_init(application: Application):
     await application.bot.delete_webhook(drop_pending_updates=True)
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("cek", cek))
-    app.add_handler(CommandHandler("k", handle_k_command))
-    app.run_polling(drop_pending_updates=True)
+    application = Application.builder().token(TOKEN).build()
+
+# DAFTARIN COMMAND DI SINI
+application.add_handler(CommandHandler("start", handle_start))
+application.add_handler(CommandHandler("cek", handle_cek))
+application.add_handler(CommandHandler("k", handle_k_command)) # INI
+application.add_handler(CommandHandler("testkey", handle_testkey)) # INI JUGA
+
+application.run_polling()
 
 if __name__ == '__main__':
     main()
