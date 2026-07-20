@@ -94,7 +94,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'gas': 21000, 'gasPrice': gas_price, 'chainId': chain_id
             }
             signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
-            tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction) # FIX V5
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
             web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             await update.message.reply_text("Wallet aktif. Mulai spam token...")
             await asyncio.sleep(5)
@@ -113,7 +113,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'gasPrice': gas_price, 'chainId': chain_id
                 })
                 signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
-                tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction) # FIX V5
+                tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
                 web3.eth.wait_for_transaction_receipt(tx_hash, timeout=180)
                 sukses += 1
                 await update.message.reply_text(f"TX {i+1}/{jumlah} sukses: {tx_hash.hex()[:10]}...")
