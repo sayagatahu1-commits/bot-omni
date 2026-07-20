@@ -12,22 +12,22 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
 BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
+# PASTIIN ADDRESS DI SINI UDAH CHECKSUM
 TOKENS = {
-    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
-    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
-    "DAI": "0xb96a869c74be2ed561d95a7740850371f287d16",
+    "USDT": "0xFcC025a3E170Df62De0e25af7cEaf1c89AbFe6e9",
+    "USDC": "0xe819eb5bE34b20F1FEC012C0DAF960397A0FB386",
+    "DAI": "0xb96a869c74bE2eD561D95A7740850371F287D16",
 }
 
 BRIDGE_ABI = [
     {"inputs": [{"internalType": "address", "name": "token", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "bridgeTokens", "outputs": [{"internalType": "bytes32", "name": "withdrawalId", "type": "bytes32"}], "stateMutability": "payable", "type": "function"},
-    {"inputs": [{"internalType": "address", "name": "token", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}], "name": "quoteBridgeFee", "outputs": [{"internalType": "uint256", "name": "fee", "type": "uint256"}], "stateMutability": "view", "type": "function"}
 ]
 
 TEQOIN_TOKEN_ABI = [
     {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
     {"constant": False, "inputs": [{"name": "_spender", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "type": "function"},
     {"constant": True, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "type": "function"},
-    {"constant": False, "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "send", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
+    {"constant": False, "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "transfer", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
 ]
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -36,6 +36,7 @@ sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 logging.basicConfig(level=logging.INFO)
 
 def addr(a):
+    # JANGAN ADA.lower() DISINI
     return Web3.to_checksum_address(a.strip())
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,8 +71,10 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         decimals = contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
 
+        await update.message.reply_text(f"Kirim {amount} {token} ke {to_address}")
+
         nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-        tx = contract.functions.send(to_address, amount_wei).build_transaction({
+        tx = contract.functions.transfer(to_address, amount_wei).build_transaction({
             'chainId': CHAIN_ID,
             'gas': 100000,
             'gasPrice': w3.eth.gas_price,
@@ -143,7 +146,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         continue
                     await update.message.reply_text(f"Approve {i+1}/{loop_count} confirmed ✅")
                 except Exception as e:
-                    await update.message.reply_text(f"❌ Approve {i+1}/{loop_count} timeout 5 menit. RPC TeQoin lemot. Coba lagi nanti.\nHash: `{approve_hash.hex()}`", parse_mode='Markdown')
+                    await update.message.reply_text(f"❌ Approve {i+1}/{loop_count} timeout 5 menit\nHash: `{approve_hash.hex()}`", parse_mode='Markdown')
                     continue
 
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
