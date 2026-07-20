@@ -134,7 +134,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             balance = w3.eth.get_balance(sender_address)
             await update.message.reply_text(f"Saldo ETH: {w3.from_wei(balance, 'ether')}")
         else:
-            contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
+            contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
             decimals = contract.functions.decimals().call()
             balance = contract.functions.balanceOf(sender_address).call()
             await update.message.reply_text(f"Saldo {token_symbol}: {balance / 10**decimals}")
