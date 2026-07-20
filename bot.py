@@ -2,7 +2,7 @@ import os
 import logging
 from web3 import Web3
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Application  # <<< TAMBAHIN Application
 
 TOKEN = os.getenv("TOKEN")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
@@ -140,7 +140,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
-async def post_init(application: Application):
+async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
         ("start", "Cek wallet & menu"),
         ("send", "Kirim token ke address lain"),
