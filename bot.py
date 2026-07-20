@@ -173,8 +173,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
                 
-                
-                        success_count += 1
+                success_count += 1
             
         except Exception as e:  # ← indent 8 spasi, sejajar sama 'try' di dalem for
             await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
