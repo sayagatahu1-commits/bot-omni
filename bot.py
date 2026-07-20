@@ -39,6 +39,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args)!= 3:
             await update.message.reply_text("Format: /send TOKEN 0xAlamat 1.5")
@@ -54,22 +55,21 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         nonce = w3.eth.get_transaction_count(sender_address)
 
-        # TeQoin pake EIP-1559. Gas fee hampir 0
-        base_fee = w3.eth.gas_price
-        max_priority_fee = 0
-        max_fee_per_gas = base_fee
+        # TeQoin gas price = 0. Pake 1 wei biar ga ditolak
+        max_priority_fee = 1 # 1 wei
+        max_fee_per_gas = 1 # 1 wei
 
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
                 'nonce': nonce,
                 'to': to_address,
                 'value': w3.to_wei(amount, 'ether'),
-                'gas': 21000,
                 'maxFeePerGas': max_fee_per_gas,
                 'maxPriorityFeePerGas': max_priority_fee,
                 'chainId': CHAIN_ID,
                 'type': 2
             }
+            tx['gas'] = w3.eth.estimate_gas(tx) # Auto estimate gas
         else:
             contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
             decimals = contract.functions.decimals().call()
@@ -83,12 +83,21 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': CHAIN_ID,
                 'type': 2
             })
-            # Estimate gas biar ga kegedean
+            # Auto estimate gas yg dipake beneran
             tx['gas'] = w3.eth.estimate_gas(tx)
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-        await update.message.reply_text(f"✅ {token_symbol} Terkirim!\nhttps://testnet.teqchain.com/tx/0x{tx_hash.hex()}")
+
+        # Hitung fee beneran yg kepake
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        actual_fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+
+        await update.message.reply_text(
+            f"✅ {token_symbol} Terkirim!\n"
+            f"Fee: {actual_fee} ETH\n"
+            f"https://testnet.teqchain.com/tx/0x{tx_hash.hex()}"
+        )
 
     except Exception as e:
         await update.message.reply_text(f"Error woy: {e}")
