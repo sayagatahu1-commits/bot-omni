@@ -33,19 +33,7 @@ logging.basicConfig(level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
-    await update.message.reply_text(
-        f"Wallet:\n{sender_address}\n"
-        f"Saldo ETH: {eth_balance}\n"
-        f"Chain ID RPC: {CHAIN_ID}\n\n"
-        f"Format:\n"
-        f"/send TOKEN 0xAlamat 0.01 [jumlah]\n"
-        f"/bridge TOKEN 0.01 [jumlah]\n"
-        f"/balance TOKEN\n\n"
-        f"Contoh farming poin:\n"
-        f"/bridge USDT 0.01 10"
-    )
-
-async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    awaitasync def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args or len(context.args) < 3:
         await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
         return
@@ -60,14 +48,24 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if token == "ETH":
-        # handle ETH transfer
+        await update.message.reply_text("ETH belum support, pake USDT/USDC/DAI dulu")
         return
 
     token_address = TOKENS[token]
-    # <<< FIX DI SINI: ERC20_ABI huruf besar + checksum >>>
     contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
-    decimals = contract.functions.decimals().call()
-    amount_wei = int(amount * 10**decimals)
+
+    try:
+        decimals = contract.functions.decimals().call()
+        balance = contract.functions.balanceOf(sender_address).call()
+        amount_wei = int(amount * 10**decimals)
+
+        if balance < amount_wei:
+            await update.message.reply_text(f"Balance kurang. Punya: {balance / 10**decimals} {token}")
+            return
+
+    except Exception as e:
+        await update.message.reply_text(f"Gagal cek token: {str(e)}")
+        return
 
     await update.message.reply_text(f"Proses kirim {token} {amount} sebanyak {loop_count}x...")
 
@@ -75,35 +73,57 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_fee = 0
     for i in range(loop_count):
         try:
-            nonce = w3.eth.get_transaction_count(sender_address)
+            # <<< FIX 1: Pake 'pending' biar nonce ga tabrakan >>>
+            nonce = w3.eth.get_transaction_count(sender_address, 'pending')
+
             tx = contract.functions.transfer(
-                Web3.to_checksum_address(to_address), # <<< CHECKSUM JUGA
+                Web3.to_checksum_address(to_address),
                 amount_wei
             ).build_transaction({
                 'chainId': CHAIN_ID,
                 'gas': 100000,
-                'gasPrice': w3.eth.gas_price,
+                'gasPrice': int(w3.eth.gas_price * 1.1), # <<< FIX 2: Gas +10% biar cepet
                 'nonce': nonce,
             })
 
             signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
             tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-            fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
-            total_fee += float(fee)
-            success_count += 1
-            await update.message.reply_text(f"Tx ke-{i+1} done: {tx_hash.hex()}")
+            await update.message.reply_text(f"Tx ke-{i+1} dikirim: {tx_hash.hex()}\nNunggu konfirmasi...")
+
+            # <<< FIX 3: Kasih timeout 120 detik biar ga stuck selamanya >>>
+            receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+            if receipt.status == 1:
+                fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+                total_fee += float(fee)
+                success_count += 1
+                await update.message.reply_text(f"Tx ke-{i+1} sukses: {tx_hash.hex()}")
+            else:
+                await update.message.reply_text(f"Tx ke-{i+1} gagal on-chain: {tx_hash.hex()}")
+                break
 
         except Exception as e:
-            await update.message.reply_text(f"Tx ke-{i+1} gagal: {str(e)}")
+            await update.message.reply_text(f"Tx ke-{i+1} error: {str(e)}")
             break
 
-    await update.message.reply_text(
+        await update.message.reply_text(
         f"✅ Selesai!\n"
         f"Berhasil: {success_count}/{loop_count}x\n"
         f"Total Fee: {total_fee:.13f} ETH"
+    ) # <<< tutup kurung di sini doang
+
+    await update.message.reply_text( # <<< await + indent sejajar
+        f"Wallet:\n{sender_address}\n"
+        f"Saldo ETH: {eth_balance}\n"
+        f"Chain ID RPC: {CHAIN_ID}\n\n"
+        f"Format:\n"
+        f"/send TOKEN 0xAlamat 0.01 [jumlah]\n"
+        f"/bridge TOKEN 0.01 [jumlah]\n"
+        f"/balance TOKEN\n\n"
+        f"Contoh farming poin:\n"
+        f"/bridge USDT 0.01 10"
     )
-    
+
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args)!= 1:
