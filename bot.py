@@ -7,9 +7,9 @@ import asyncio
 BOT_TOKEN = os.environ['BOT_TOKEN']
 PRIVATE_KEY = os.environ['PRIVATE_KEY'].strip()
 WALLET_ADDRESS = Web3.to_checksum_address(os.environ['WALLET_ADDRESS'])
-RPC_URL = os.environ.get('RPC_URL', 'https://rpc.teqoin.io/testnet')
+RPC_URL = os.environ.get('RPC_URL', 'https://testnet.teqoin.com/rpc')
 
-web3 = Web3(Web3.HTTPProvider(RPC_URL))
+web3 = Web3(Web3.HTTPProvider(RPC_URL, request_kwargs={'timeout': 60}))
 CHAIN_ID = 22888
 
 CONTRACTS = {
@@ -25,13 +25,21 @@ ERC20_ABI = [
 ]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    eth = web3.from_wei(web3.eth.get_balance(WALLET_ADDRESS), 'ether')
-    msg = f"Wallet: {WALLET_ADDRESS}\nGas ETH: {eth:.10f}\n\n"
+    try:
+        eth = web3.from_wei(web3.eth.get_balance(WALLET_ADDRESS), 'ether')
+        msg = f"Wallet: {WALLET_ADDRESS}\nGas ETH: {eth:.10f}\nRPC: OK\n\n"
+    except Exception as e:
+        msg = f"Wallet: {WALLET_ADDRESS}\nRPC ERROR: {str(e)[:100]}\n\n"
+
     for name, addr in CONTRACTS.items():
-        c = web3.eth.contract(address=addr, abi=ERC20_ABI)
-        dec = c.functions.decimals().call()
-        bal = c.functions.balanceOf(WALLET_ADDRESS).call() / (10 ** dec)
-        msg += f"{name.upper()}: {bal:.4f}\n"
+        try:
+            c = web3.eth.contract(address=addr, abi=ERC20_ABI)
+            dec = c.functions.decimals().call()
+            bal = c.functions.balanceOf(WALLET_ADDRESS).call() / (10 ** dec)
+            msg += f"{name.upper()}: {bal:.4f}\n"
+        except:
+            msg += f"{name.upper()}: RPC Error\n"
+
     msg += "\nCommand:\n/k TOKEN ALAMAT JUMLAH\nContoh: /k usdt 0x123... 5"
     await update.message.reply_text(msg)
 
@@ -40,19 +48,29 @@ async def cek(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pk_addr = web3.eth.account.from_key(PRIVATE_KEY).address
         eth = web3.from_wei(web3.eth.get_balance(WALLET_ADDRESS), 'ether')
         block = web3.eth.block_number
+        base_fee = web3.eth.get_block('latest')['baseFeePerGas']
         status = "✅ Private Key COCOK" if pk_addr.lower() == WALLET_ADDRESS.lower() else "❌ Private Key BEDA"
-        msg = f"RPC: {RPC_URL}\nChainID: {CHAIN_ID}\nBlock: {block}\nWALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
+        msg = f"RPC: {RPC_URL}\nChainID: {CHAIN_ID}\nBlock: {block}\nBaseFee: {web3.from_wei(base_fee, 'gwei'):.1f} gwei\n"
+        msg += f"WALLET_ADDRESS ENV:\n{WALLET_ADDRESS}\nAddress dari PRIVATE_KEY:\n{pk_addr}\nSaldo ETH Gas: {eth:.6f}\n{status}"
         await update.message.reply_text(msg)
     except Exception as e:
-        await update.message.reply_text(f"Error: {str(e)}")
+        await update.message.reply_text(f"RPC MATI: {str(e)}")
 
 async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
+        if not web3.is_connected():
+            await update.message.reply_text("RPC MATI. Ganti RPC_URL di Railway.")
+            return
+
         if len(context.args) < 3:
             await update.message.reply_text("Format: /k TOKEN ALAMAT JUMLAH")
             return
 
         token = context.args[0].lower()
+        if token not in CONTRACTS:
+            await update.message.reply_text(f"Token {token} ga ada. Pilih: dai, usdt, usdc")
+            return
+
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
 
@@ -60,35 +78,20 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         decimals = contract.functions.decimals().call()
         amount = int(0.01 * (10 ** decimals))
 
-        # DEBUG: Cek biaya dulu sebelum kirim
-        eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
-        base_fee = web3.eth.get_block('latest')['baseFeePerGas']
-        max_priority_fee = web3.to_wei('1', 'gwei')
-        max_fee = base_fee + max_priority_fee
-        gas_estimate = 50000
-        total_cost = gas_estimate * max_fee
-
-        debug_msg = f"Saldo ETH: {web3.from_wei(eth_balance, 'ether'):.6f}\n"
-        debug_msg += f"BaseFee: {web3.from_wei(base_fee, 'gwei'):.1f} gwei\n"
-        debug_msg += f"Biaya 1 TX: {web3.from_wei(total_cost, 'ether'):.6f} ETH\n"
-        debug_msg += f"Cukup? {'YA' if eth_balance >= total_cost else 'ENGGAK'}"
-
-        await update.message.reply_text(debug_msg)
-
-        if eth_balance < total_cost:
-            await update.message.reply_text("STOP. ETH Kurang buat gas. Minta faucet lagi sampe 0.001 ETH.")
-            return
-
         await update.message.reply_text(f"Mulai spam {jumlah}x 0.01 {token.upper()} ke {to_address[:10]}...")
 
         sukses = 0
         for i in range(jumlah):
             try:
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'latest')
+                base_fee = web3.eth.get_block('latest')['baseFeePerGas']
+                max_priority_fee = web3.to_wei('1', 'gwei')
+                max_fee = base_fee + max_priority_fee
+
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
-                    'gas': 50000,
+                    'gas': 60000,
                     'maxFeePerGas': max_fee,
                     'maxPriorityFeePerGas': max_priority_fee,
                     'chainId': CHAIN_ID,
@@ -100,7 +103,7 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 sukses += 1
                 await asyncio.sleep(3)
             except Exception as e:
-                await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)}")
+                await update.message.reply_text(f"Gagal TX ke-{i+1}: {str(e)[:200]}")
                 break
 
         await update.message.reply_text(f"SELESAI. Berhasil {sukses}/{jumlah}x kirim {token.upper()}")
