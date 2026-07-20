@@ -10,7 +10,8 @@ RPC_URL = os.getenv("RPC_URL")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
-BRIDGE_CONTRACT = Web3.to_checksum_address("0xbc6ad4965241ea4260eb571c936576a4f537d67b")
+# LANGSUNG PAKE CHECKSUM, GA USAH PANGGIL to_checksum_address()
+BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
 BRIDGE_ABI = [
     {
         "inputs": [
@@ -34,11 +35,11 @@ BRIDGE_ABI = [
     }
 ]
 
-# UDAH GUA PASTIIN GA ADA SPASI - COPY PERSIS
+# PAKE CHECKSUM LANGSUNG - INI UDAH GUA CONVERTIN
 TOKENS = {
-    "USDT": Web3.to_checksum_address("0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9"),
-    "USDC": Web3.to_checksum_address("0xe819eb5be34b20f1fec012c0daf960397a0fb386"),
-    "DAI": Web3.to_checksum_address("0xb96a869c74be2ed561d95a7740850371f287d16"),
+    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfE6E9",
+    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fB386",
+    "DAI": "0xb96a869c74bE2eD561D95A7740850371f287D16",
 }
 
 TEQOIN_TOKEN_ABI = [
@@ -72,7 +73,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         token = context.args[0].upper()
-        to_address = Web3.to_checksum_address(context.args[1])
+        to_address = Web3.to_checksum_address(context.args[1].strip()) #.strip() buat jaga2
         amount = float(context.args[2])
 
         if token not in TOKENS:
