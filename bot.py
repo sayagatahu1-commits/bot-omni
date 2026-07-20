@@ -153,7 +153,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
                     'gas': 300000,
-                    'gasPrice': w3.eth.gas_price,
+                    'gasPrice': int(w3.eth.gas_price * 1.5),  # gas x1.5 biar cepet
                     'nonce': nonce,
                     'value': bridge_fee
                 })
