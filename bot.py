@@ -74,28 +74,46 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         to_address = Web3.to_checksum_address(context.args[1])
         jumlah = int(context.args[2])
 
+        gas_limit = 40000
+        gas_price = web3.to_wei('0.0001', 'gwei')
+
+        eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
+        if eth_balance < gas_limit * gas_price:
+            await update.message.reply_text(f"Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} kurang buat gas.")
+            return
+
+        await update.message.reply_text(f"Aktivasi wallet dulu...")
+
+        # 1. KIRIM 0 ETH KE DIRI SENDIRI BIAR AKTIF
+        try:
+            nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
+            tx_aktivasi = {
+                'from': WALLET_ADDRESS,
+                'to': WALLET_ADDRESS,
+                'value': 0,
+                'nonce': nonce,
+                'gas': 21000,
+                'gasPrice': gas_price,
+                'chainId': CHAIN_ID
+            }
+            signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+            await update.message.reply_text("Wallet aktif. Mulai spam token...")
+            await asyncio.sleep(3)
+        except Exception as e:
+            await update.message.reply_text(f"Gagal aktivasi: {str(e)[:200]}. Coba kirim 0.001 ETH dari wallet lu ke alamat ini dulu manual.")
+            return
+
+        # 2. BARU SPAM TOKEN
         contract = web3.eth.contract(address=Web3.to_checksum_address(CONTRACTS[token]), abi=ERC20_ABI)
         decimals = contract.functions.decimals().call()
         amount = int(0.01 * (10 ** decimals))
-
-        # GAS SUPER MURAH KAYA DI WALLET LU
-        gas_limit = 40000
-        gas_price = web3.to_wei('0.0001', 'gwei') # 0.0001 GWEI = MIRIP FEE DI SS LU
-        biaya_1_tx = gas_limit * gas_price
-
-        eth_balance = web3.eth.get_balance(WALLET_ADDRESS)
-        if eth_balance < biaya_1_tx:
-            await update.message.reply_text(f"GAGAL. Saldo ETH {web3.from_wei(eth_balance, 'ether'):.12f} masih kurang buat 1 tx. Butuh {web3.from_wei(biaya_1_tx, 'ether'):.12f} ETH.")
-            return
-
-        await update.message.reply_text(f"Mulai spam {jumlah}x 0.01 {token.upper()} ke {to_address[:10]}...\nGas: {web3.from_wei(gas_price, 'gwei')} gwei")
 
         sukses = 0
         for i in range(jumlah):
             try:
                 nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
-
-                # PAKE LEGACY TX + GAS MURAH
                 tx = contract.functions.transfer(to_address, amount).build_transaction({
                     'from': WALLET_ADDRESS,
                     'nonce': nonce,
