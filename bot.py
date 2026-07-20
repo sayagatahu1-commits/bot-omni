@@ -103,9 +103,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Berhasil: {success_count}/{loop_count}x\n"
         f"Total Fee: {total_fee:.13f} ETH"
     )
-    except Exception as e:
-        await update.message.reply_text(f"Error woy: {e}")
-
+    
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args)!= 1:
