@@ -11,7 +11,6 @@ RPC_URL = os.getenv("RPC_URL")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 CHAIN_ID = int(os.getenv("CHAIN_ID"))
 
-# TULIS LOWERCASE AJA, BIARIN KODE YG URUS CHECKSUM
 BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
 TOKENS = {
     "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
@@ -32,12 +31,12 @@ TEQOIN_TOKEN_ABI = [
 ]
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
-w3.middleware_onion.inject(geth_poa_middleware, layer=0) # WAJIB BUAT TEQOIN
+w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
 logging.basicConfig(level=logging.INFO)
 
-# FUNGSI SAKTI: AUTO CHECKSUM APAPUN INPUTNYA
-def addr(a): return Web3.to_checksum_address(a.strip().lower())
+def addr(a):
+    return Web3.to_checksum_address(a.strip().lower())
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
@@ -86,7 +85,6 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Send gagal: {str(e)}")
 
 async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
-async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args or len(context.args) < 2:
             await update.message.reply_text("Format: /bridge USDT 0.01 [jumlah]")
@@ -105,19 +103,16 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
         token_contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         bridge_contract = w3.eth.contract(address=bridge_address, abi=BRIDGE_ABI)
 
-        # INI KUNCINYA: AMBIL DECIMALS DARI CONTRACT LANGSUNG
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
 
         await update.message.reply_text(f"Token {token} decimals: {decimals}\nAmount wei: {amount_wei}")
 
-        # CEK SALDO
         balance = token_contract.functions.balanceOf(sender_address).call()
         if balance < amount_wei:
             await update.message.reply_text(f"❌ Saldo kurang. Punya: {balance / 10**decimals} {token}")
             return
 
-        # CEK FEE + SIMULASI DULU BIAR TAU REVERT KENAPA
         try:
             bridge_fee = bridge_contract.functions.quoteBridgeFee(token_address, amount_wei).call()
             await update.message.reply_text(f"Fee bridge: {w3.from_wei(bridge_fee, 'ether')} ETH")
@@ -125,7 +120,6 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"❌ quoteBridgeFee gagal: {str(e)}")
             return
 
-        # SIMULASI TX SEBELUM KIRIM - BIAR TAU REVERT REASON
         try:
             bridge_contract.functions.bridgeTokens(token_address, amount_wei).call({'from': sender_address, 'value': bridge_fee})
         except Exception as e:
@@ -137,7 +131,6 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success_count = 0
         for i in range(loop_count):
             try:
-                # APPROVE
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 approve_tx = token_contract.functions.approve(bridge_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
@@ -150,7 +143,6 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Approve {i+1}/{loop_count}...")
                 w3.eth.wait_for_transaction_receipt(approve_hash, timeout=120)
 
-                # BRIDGE
                 nonce = w3.eth.get_transaction_count(sender_address, 'pending')
                 tx = bridge_contract.functions.bridgeTokens(token_address, amount_wei).build_transaction({
                     'chainId': CHAIN_ID,
@@ -178,6 +170,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"❌ Bridge error: {str(e)}")
+
 async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args:
