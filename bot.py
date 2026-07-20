@@ -4,27 +4,22 @@ from web3 import Web3
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, Application  # <<< TAMBAHIN Application
 
-TOKEN = os.getenv("TOKEN")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-CHAIN_ID = int(os.getenv("CHAIN_ID", "28516"))
-RPC_URL = os.getenv("RPC_URL", "https://rpc.teqoin.io/testnet")
-
-TOKENS = {
-    "USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
-    "USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386", 
-    "DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
-    "ETH": "NATIVE"
-}
-
 # <<< TEMPEL DI SINI >>>
-ERC20_ABI = [
-    {"constant":True,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},
-    {"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},
-    {"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}
-]
 
 BRIDGE_CONTRACT = "0xbc6ad4965241ea4260eb571c936576a4f537d67b"
 BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"uint256","name":"_destinationChainId","type":"uint256"}],"name":"bridgeToken","outputs":[],"stateMutability":"payable","type":"function"}]
+TOKENS = {
+"USDT": "0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9",
+"USDC": "0xe819eb5be34b20f1fec012c0daf960397a0fb386",
+"DAI": "0xb96a869c74be2ed561d95a77408505371f287d16",
+"ETH": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", # native ETH
+}
+
+ERC20_ABI = [
+{"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"},
+{"constant":False,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"},
+{"constant":True,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}
+]
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
@@ -49,9 +44,12 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
        await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
        return
 
-    token = context.args[0].upper()
-    # dst...
-    contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
+     token = context.args[0].upper()
+ token_address = TOKENS.get(token) # <<< TAMBAHIN INI
+ if not token_address:
+ await update.message.reply_text(f"Token {token} tidak terdaftar di TOKENS")
+ return
+ contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
 
     try:
         decimals = contract.functions.decimals().call()
