@@ -148,26 +148,29 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     success_count = 0
     for i in range(loop_count):
-        try:
-            nonce = w3.eth.get_transaction_count(sender_address)
-            tx = contract.functions.transfer(
-                Web3.to_checksum_address("0x0000000000000000000000000000000000000001"), # Dummy bridge
-                amount_wei
-            ).build_transaction({
-                'chainId': CHAIN_ID,
-                'gas': 100000,
-                'gasPrice': w3.eth.gas_price,
-                'nonce': nonce,
-            })
+    try:
+        nonce = w3.eth.get_transaction_count(sender_address)
+        tx = contract.functions.transfer(
+            Web3.to_checksum_address(to_address),
+            amount_wei
+        ).build_transaction({
+            'chainId': CHAIN_ID,
+            'gas': 100000,
+            'gasPrice': w3.eth.gas_price,
+            'nonce': nonce,
+        })
 
-            signed_tx = w3.eth.account.sign_transaction(tx, private_key=PRIVATE_KEY)
-            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-            success_count += 1
-            await update.message.reply_text(f"Bridge {i+1}/{loop_count} done: {tx_hash.hex()}")
+        signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        fee = w3.from_wei(receipt.gasUsed * receipt.effectiveGasPrice, 'ether')
+        total_fee += float(fee)
+        success_count += 1
+        await update.message.reply_text(f"Tx ke-{i+1} done: {tx_hash.hex()}")
 
-        except Exception as e:
-            await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
-            break
+    except Exception as e:
+        await update.message.reply_text(f"Tx ke-{i+1} gagal: {str(e)}")
+        break
 
     await update.message.reply_text(
         f"✅ Bridge Selesai!\n"
