@@ -53,10 +53,10 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         nonce = w3.eth.get_transaction_count(sender_address)
 
-        # Ambil baseFee dari chain, jangan hardcode 1 wei lagi
+        # Pake baseFee doang, tip = 0 wei
         base_fee = w3.eth.get_block('latest')['baseFeePerGas']
-        max_priority_fee = w3.to_wei(1, 'gwei') # tip 1 gwei biar aman
-        max_fee_per_gas = base_fee + max_priority_fee
+        max_priority_fee = 0 # GA PAKE TIP
+        max_fee_per_gas = base_fee
 
         if TOKENS[token_symbol] == "NATIVE":
             tx = {
@@ -68,7 +68,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': CHAIN_ID,
                 'type': 2
             }
-            tx['gas'] = w3.eth.estimate_gas(tx)
+            tx['gas'] = 21000
         else:
             contract = w3.eth.contract(address=Web3.to_checksum_address(TOKENS[token_symbol]), abi=erc20_abi)
             decimals = contract.functions.decimals().call()
@@ -82,7 +82,8 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'chainId': CHAIN_ID,
                 'type': 2
             })
-            tx['gas'] = w3.eth.estimate_gas(tx)
+            # Manual gas 65000 biar ga di-estimate kegedean
+            tx['gas'] = 65000
 
         signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
