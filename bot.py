@@ -34,18 +34,18 @@ BRIDGE_ABI = [
     }
 ]
 
+# UDAH BENER SESUAI SS LU + CHECKSUM
 TOKENS = {
     "USDT": Web3.to_checksum_address("0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9"),
     "USDC": Web3.to_checksum_address("0xe819eb5be34b20f1fec012c0daf960397a0fb386"),
-    "DAI": Web3.to_checksum_address("0xb96a869c74be2ed561d95a7740850371f287d16"),
+    "DAI": Web3.to_checksum_address("0xb96a869c74be2ed561d95a7740850371f287d16"), # UDAH BENER
 }
 
-# ABI TEQOIN TOKEN - PAKE send BUKAN transfer
 TEQOIN_TOKEN_ABI = [
     {"constant": True, "inputs": [{"name": "_owner", "type": "address"}], "name": "balanceOf", "outputs": [{"name": "balance", "type": "uint256"}], "type": "function"},
     {"constant": False, "inputs": [{"name": "_spender", "type": "address"}, {"name": "_value", "type": "uint256"}], "name": "approve", "outputs": [{"name": "", "type": "bool"}], "type": "function"},
     {"constant": True, "inputs": [], "name": "decimals", "outputs": [{"name": "", "type": "uint8"}], "type": "function"},
-    {"constant": False, "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "send", "outputs": [{"name": "", "type": "bool"}], "type": "function"} # TEQOIN PAKE send
+    {"constant": False, "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}], "name": "send", "outputs": [{"name": "", "type": "bool"}], "type": "function"}
 ]
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -55,7 +55,7 @@ logging.basicConfig(level=logging.INFO)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
     await update.message.reply_text(
-        f"TeQoin Wallet Bot\n"
+        f"TeQoin Testnet Wallet Bot\n"
         f"Wallet: `{sender_address}`\n"
         f"Saldo TEQ: {eth_balance}\n"
         f"Chain ID: {CHAIN_ID}\n\n"
@@ -68,7 +68,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if len(context.args) < 3:
-            await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01\nContoh: /send USDT 0xd92... 0.01")
+            await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01")
             return
 
         token = context.args[0].upper()
@@ -80,12 +80,11 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         token_address = TOKENS[token]
-        contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI) # PAKE ABI TEQOIN
+        contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         decimals = contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
 
         nonce = w3.eth.get_transaction_count(sender_address, 'pending')
-        # TEQOIN PAKE.send BUKAN.transfer
         tx = contract.functions.send(to_address, amount_wei).build_transaction({
             'chainId': CHAIN_ID,
             'gas': 100000,
@@ -102,7 +101,7 @@ async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not context.args or len(context.args) < 2:
-            await update.message.reply_text("Format: /bridge USDT 0.01 [jumlah]\nContoh: /bridge USDT 0.01 5")
+            await update.message.reply_text("Format: /bridge USDT 0.01 [jumlah]")
             return
 
         token = context.args[0].upper()
@@ -114,7 +113,7 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         token_address = TOKENS[token]
-        token_contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI) # PAKE ABI TEQOIN
+        token_contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         bridge_contract = w3.eth.contract(address=BRIDGE_CONTRACT, abi=BRIDGE_ABI)
         decimals = token_contract.functions.decimals().call()
         amount_wei = int(amount * 10**decimals)
@@ -193,7 +192,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"Token {token} ga ada")
             return
         token_address = TOKENS[token]
-        contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI) # PAKE ABI TEQOIN
+        contract = w3.eth.contract(address=token_address, abi=TEQOIN_TOKEN_ABI)
         decimals = contract.functions.decimals().call()
         bal = contract.functions.balanceOf(sender_address).call()
         await update.message.reply_text(f"Saldo {token}: {bal / 10**decimals}")
