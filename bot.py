@@ -28,30 +28,30 @@ BRIDGE_ABI = [{"inputs":[{"internalType":"address","name":"_token","type":"addre
 
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
 sender_address = w3.eth.account.from_key(PRIVATE_KEY).address
+ logging.basicConfig(level=logging.INFO)
+ logging.basicConfig(level=logging.INFO)
 
-33 logging.basicConfig(level=logging.INFO)
-34
-35 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-36 eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
-37 await update.message.reply_text(
-38 f"Wallet:\n{sender_address}\n"
-39 f"Saldo ETH: {eth_balance}\n"
-40 f"Chain ID RPC: {CHAIN_ID}\n\n"
-41 f"Format:\n"
-42 f"/send TOKEN 0xAlamat 0.01 [jumlah]\n"
-43 f"/bridge TOKEN 0.01 [jumlah]\n"
-44 f"/balance TOKEN\n\n"
-45 f"Contoh farming poin:\n"
-46 f"/bridge USDT 0.01 10"
-47 )
-48
-49 async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE): # <<< RATA KIRI
-50 if not context.args or len(context.args) < 3:
-51 await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
-52 return
-53
-54 token = context.args[0].upper()
-55 # dst...
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+eth_balance = w3.from_wei(w3.eth.get_balance(sender_address), 'ether')
+await update.message.reply_text(
+f"Wallet:\n{sender_address}\n"
+f"Saldo ETH: {eth_balance}\n"
+f"Chain ID RPC: {CHAIN_ID}\n\n"
+f"Format:\n"
+f"/send TOKEN 0xAlamat 0.01 [jumlah]\n"
+f"/bridge TOKEN 0.01 [jumlah]\n"
+f"/balance TOKEN\n\n"
+f"Contoh farming poin:\n"
+f"/bridge USDT 0.01 10"
+)
+
+async def send_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
+if not context.args or len(context.args) < 3:
+await update.message.reply_text("Format: /send TOKEN 0xAlamat 0.01 [jumlah]")
+return
+
+ token = context.args[0].upper()
+ # dst...
     contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=ERC20_ABI)
 
     try:
