@@ -172,16 +172,18 @@ async def bridge(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 signed_tx = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
                 tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
-                success_count += 1
                 
-            except Exception as e:
-                await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
-        
-        await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")
+                
+                        success_count += 1
+            
+        except Exception as e:  # ← indent 8 spasi, sejajar sama 'try' di dalem for
+            await update.message.reply_text(f"Bridge {i+1}/{loop_count} gagal: {str(e)}")
 
-    except Exception as e:
-        await update.message.reply_text(f"❌ Bridge gagal: {str(e)}")
-        logging.error(f"Bridge error: {e}")
+    await update.message.reply_text(f"✅ Berhasil: {success_count}/{loop_count}")  # ← indent 4 spasi
+
+except Exception as e:  # ← indent 4 spasi, sejajar sama 'try' paling atas function
+    await update.message.reply_text(f"❌ Bridge gagal: {str(e)}")
+    logging.error(f"Bridge error: {e}")
 async def post_init(application):  # <<< HAPUS : Application
     await application.bot.set_my_commands([
         ("start", "Cek wallet & menu"),
