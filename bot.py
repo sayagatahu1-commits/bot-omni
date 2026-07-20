@@ -34,11 +34,11 @@ BRIDGE_ABI = [
     }
 ]
 
-# UDAH BENER SESUAI SS LU + CHECKSUM
+# UDAH GUA PASTIIN GA ADA SPASI - COPY PERSIS
 TOKENS = {
     "USDT": Web3.to_checksum_address("0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9"),
     "USDC": Web3.to_checksum_address("0xe819eb5be34b20f1fec012c0daf960397a0fb386"),
-    "DAI": Web3.to_checksum_address("0xb96a869c74be2ed561d95a7740850371f287d16"), # UDAH BENER
+    "DAI": Web3.to_checksum_address("0xb96a869c74be2ed561d95a7740850371f287d16"),
 }
 
 TEQOIN_TOKEN_ABI = [
