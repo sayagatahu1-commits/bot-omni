@@ -169,7 +169,7 @@ async def bridge_token(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             nonce = w3.eth.get_transaction_count(sender_address)
             tx = contract.functions.transfer(
-                Web3.to_checksum_address("0x0000000000000001"), # Dummy bridge
+                Web3.to_checksum_address("0x0000000000000000000000000000000000000001"), # Dummy bridge
                 amount_wei
             ).build_transaction({
                 'chainId': CHAIN_ID,
