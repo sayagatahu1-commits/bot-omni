@@ -1,16 +1,5 @@
 import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from web3 import Web3
-from eth_account import Account
-
-# --- KONFIGURASI ---
-TOKEN = os.getenv("TOKEN")
-PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-RPC_URL = os.getenv("RPC_URL")
-import os
-import logging
 from web3 import Web3
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
