@@ -1,8 +1,8 @@
 import os
+import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
-import asyncio
 
 BOT_TOKEN = os.environ['BOT_TOKEN']
 PRIVATE_KEY = os.environ['PRIVATE_KEY'].strip()
@@ -15,7 +15,7 @@ CHAIN_ID = 22888
 CONTRACTS = {
     'usdt': Web3.to_checksum_address('0xfcc025a3e170df62de0e25af7ceaf1c89abfe6e9'),
     'usdc': Web3.to_checksum_address('0xe819eb5be34b20f1fec012c0daf960397a0fb386'),
-    'dai': Web3.to_checksum_address('0xb96a869c74be2ed561d95a77408505371f287d16')
+    'dai': Web3.to_checksum_address('0xb96a869c74be2ed56195a77408505371f287d16')
 }
 
 ERC20_ABI = [
@@ -111,16 +111,15 @@ async def handle_k_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"Error: {str(e)}")
 
-import asyncio
+# INI YG BENER BUAT HAPUS WEBHOOK + CONFLICT
+async def post_init(application: Application):
+    await application.bot.delete_webhook(drop_pending_updates=True)
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("cek", cek))
     app.add_handler(CommandHandler("k", handle_k_command))
-    
-    # HAPUS WEBHOOK + BUANG UPDATE NUMPUK
-    asyncio.run(app.bot.delete_webhook(drop_pending_updates=True))
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
