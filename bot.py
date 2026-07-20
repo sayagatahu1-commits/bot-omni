@@ -84,15 +84,13 @@ async def handle_testkey(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. KIRIM 0 ETH KE DIRI SENDIRI BIAR AKTIF
         try:
             nonce = web3.eth.get_transaction_count(WALLET_ADDRESS, 'pending')
-            tx_aktivasi = {
-                'from': WALLET_ADDRESS,
-                'to': WALLET_ADDRESS,
-                'value': 0,
-                'nonce': nonce,
-                'gas': 21000,
-                'gasPrice': gas_price,
-                CHAIN_ID = web3.eth.chain_id # Biar otomatis ngikutin RPC
-            }
+            tx = contract.functions.transfer(to_address, amount).build_transaction({
+    'from': WALLET_ADDRESS,
+    'nonce': nonce,
+    'gas': gas_limit,
+    'gasPrice': gas_price,
+    'chainId': web3.eth.chain_id # Pake : bukan =, key-nya 'chainId'
+})
             signed_tx = web3.eth.account.sign_transaction(tx_aktivasi, PRIVATE_KEY)
             tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction) # pake underscore
             web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
